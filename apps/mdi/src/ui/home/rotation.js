@@ -77,8 +77,8 @@ export function calendarIdea(n) {
   for (const i of IDEAS) if ([].concat(i.on || []).includes(md)) return i;
   return null;
 }
-/** Karte des Tages n (Tagesnummer seit 1970, UTC). Gleich fuer alle mit gleichen Faehigkeiten. */
-export function ideaOn(n, caps = WEB_CAPS) {
+/** Regel des Altcodes; gilt nur noch fuer Tage vor ANCHOR (dort zeigt der Kalender die Vergangenheit unveraendert). */
+function legacyIdeaOn(n, caps) {
   const cal = calendarIdea(n);
   if (cal && available(cal, caps)) return cal;
   const base = baseIdea(n), nextCal = calendarIdea(n + 1), prevCal = calendarIdea(n - 1), next = mech(nextCal || baseIdea(n + 1));
@@ -86,7 +86,7 @@ export function ideaOn(n, caps = WEB_CAPS) {
   const mustMove = !available(base, caps) || clash || parked(base);
   const extra = fnv1a("bonus-" + n) % BONUS_EVERY === 0 ? GATED.filter((x) => available(x, caps)) : [];
   if (!mustMove && !extra.length) return base;
-  const prev = mech(ideaOn(n - 1, caps));
+  const prev = mech(legacyIdeaOn(n - 1, caps));
   const fits = (x) => mech(x) !== prev && mech(x) !== next;
   const bonus = extra.filter(fits);
   if (bonus.length) return bonus[fnv1a("pick-" + n) % bonus.length];
@@ -97,6 +97,44 @@ export function ideaOn(n, caps = WEB_CAPS) {
   const at = fnv1a("swap-" + n) % (pool.length || 1);
   for (let k = 0; k < pool.length; k++) { const x = pool[(at + k) % pool.length]; if (!parked(x)) return x; }
   return null;
+}
+// Keine Wiederholung (User-Feedback 17.11.: „Stangen Kick“ dreimal in einer Woche). Ursache: Kalenderkarten mit mehreren
+// Tagen kurz hintereinander (arcade-kick 06./10./14./16.11.) und die Ersatzregel, die keine Historie kannte. Ab ANCHOR gilt:
+// keine Karte zweimal innerhalb von WINDOW+1 Tagen, auch nicht als Kalenderkarte; der Ersatz meidet die letzten und die
+// naechsten WINDOW Tage. Weiter rein deterministisch aus dem Seed, keine Uhr; berechnet vorwaerts ab ANCHOR (gemerkt je Faehigkeit).
+export const WINDOW = 13;
+const ANCHOR = 20454; // 2026-01-01
+const memo = new Map();
+function pick(n, caps, m) {
+  const shown = (k) => (k < ANCHOR ? legacyIdeaOn(k, caps) : m.get(k));
+  const recent = new Set();
+  for (let k = 1; k <= WINDOW; k++) { const x = shown(n - k); if (x) recent.add(x.id); }
+  const cal = calendarIdea(n);
+  if (cal && available(cal, caps) && !recent.has(cal.id)) return cal;
+  const prevI = shown(n - 1), prev = prevI ? mech(prevI) : "";
+  const base = baseIdea(n), nextCal = calendarIdea(n + 1), prevCal = calendarIdea(n - 1), next = mech(nextCal || baseIdea(n + 1));
+  const clash = (nextCal && mech(nextCal) === mech(base)) || (prevCal && mech(prevCal) === mech(base)) || mech(base) === prev;
+  const mustMove = !available(base, caps) || clash || parked(base) || recent.has(base.id);
+  const extra = fnv1a("bonus-" + n) % BONUS_EVERY === 0 ? GATED.filter((x) => available(x, caps) && !recent.has(x.id)) : [];
+  if (!mustMove && !extra.length) return base;
+  const fits = (x) => mech(x) !== prev && mech(x) !== next;
+  const bonus = extra.filter(fits);
+  if (bonus.length) return bonus[fnv1a("pick-" + n) % bonus.length];
+  if (!mustMove) return base;
+  const ahead = new Set();
+  for (let k = 1; k <= WINDOW; k++) ahead.add((calendarIdea(n + k) || baseIdea(n + k)).id);
+  const runnable = ROUND.filter((x) => available(x, caps) && !parked(x));
+  const tiers = [(x) => fits(x) && !recent.has(x.id) && !ahead.has(x.id), (x) => fits(x) && !recent.has(x.id), (x) => !recent.has(x.id), fits, () => true];
+  for (const t of tiers) { const pool = runnable.filter(t); if (pool.length) return pool[fnv1a("swap-" + n) % pool.length]; }
+  return null;
+}
+/** Karte des Tages n (Tagesnummer seit 1970, UTC). Gleich fuer alle mit gleichen Faehigkeiten. */
+export function ideaOn(n, caps = WEB_CAPS) {
+  if (n < ANCHOR) return legacyIdeaOn(n, caps);
+  const ck = [caps.crypto, caps.channel, caps.call].map((x) => (x ? 1 : 0)).join("");
+  let m = memo.get(ck); if (!m) memo.set(ck, (m = new Map()));
+  if (!m.has(n)) { let d = n; while (d > ANCHOR && !m.has(d - 1)) d--; for (; d <= n; d++) m.set(d, pick(d, caps, m)); }
+  return m.get(n);
 }
 export function ideaForDay(date, caps = WEB_CAPS) { return ideaOn(dayNumber(date), caps); }
 /** Die letzten n Tage vor date (ohne heute), neuester zuerst. */

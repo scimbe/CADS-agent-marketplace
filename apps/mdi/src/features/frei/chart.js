@@ -17,7 +17,7 @@
 //   melden     Meldung mit Grund und Einwilligung
 //   bild, bildwarten  KI-Bild (Karte, Logo, Kontobild) mit Kontingent
 //   ki         KI-Vorschlaege fuer die x-model-Felder eines Teils der offenen Karte
-import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, targetIdOf, freeIdOf, gateChecksOf } from "./doc.js";
+import { ARTS, GENRES, MODES, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, targetIdOf, freeIdOf, gateChecksOf } from "./doc.js";
 import { cardOf as cardById, validParams, LEGACY, manifestOf } from "../../cards/index.js";
 import { defaults } from "../../contract/fields.js";
 import * as G from "../../app/game.js";
@@ -79,7 +79,6 @@ export const freiState = {
         PLAYMODE: { cond: "modeOk", actions: ["setPlayMode"] },
         TEXT: { actions: ["setText"] },
         EXAMPLE: { actions: ["setExample"] },
-        SOON_PICK: { actions: ["setSoon"] },
         SEND: [{ target: T("inhalt.frei.warten"), cond: "canSend", actions: ["fxAsk"] }, { cond: "crisisText", actions: ["showCrisis"] }],
         ALT_SEND: { target: T("inhalt.frei.warten"), cond: "altOk", actions: ["takeAlt", "fxAsk"] },
         RESEND: { target: T("inhalt.frei.warten"), cond: "resendOk", actions: ["takeResend", "fxAsk"] },
@@ -331,7 +330,6 @@ export const freiActions = {
   setPlayMode: (ctx, ev) => F(ctx, { mode: ev.mode }),
   setText: (ctx, ev) => F(ctx, { text: [...String(ev.value || "")].slice(0, 200).join(""), res: ctx.frei.res && ctx.frei.res.how === "crisis" ? null : ctx.frei.res }),
   setExample: (ctx, ev) => F(ctx, { text: [...String(ev.value || "")].slice(0, 200).join("") }),
-  setSoon: (ctx, ev) => { const s = SOON.find((x) => x[0] === ev.id); return s ? F(ctx, { soon: { id: s[0], near: s[1] } }) : ctx; },
   showCrisis: (ctx) => F(ctx, { res: { how: "crisis" } }),
   fxAsk: (ctx, ev, emit) => {
     const f = ctx.frei;

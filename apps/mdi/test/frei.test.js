@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import * as A from "../src/broker/ai.js";
 import { createDeck, sane, cidOf, USE_MS, VOTE_MS } from "../src/broker/deck.js";
 import { createBild, bildVerdict } from "../src/broker/bild.js";
-import { sanitizeDoc, artOk, kindOk, targetOf, freiParams, freiDoc, freeIdOf, previewOf, SOON, MODES, PAIRS } from "../src/features/frei/doc.js";
+import { sanitizeDoc, artOk, kindOk, targetOf, freiParams, freiDoc, freeIdOf, previewOf, MODES, PAIRS } from "../src/features/frei/doc.js";
 import { FREI_TEXTS, ft } from "../src/features/frei/texts.js";
 import { cardOf } from "../src/features/frei/chart.js";
 
@@ -345,8 +345,7 @@ test("Abbildung auf Karten: card/meme -> Karte frei (Siegel reist mit), Spiele -
 test("Kategorie, Genre, Wer spielt, Bald: wie im Altcode; kein Bot fuer G1/G2", () => {
   assert.deepEqual(Object.keys(MODES), ["G1", "G2"]);
   for (const g of ["G1", "G2"]) assert.deepEqual(MODES[g], { allein: true, bot: false, duell: true });
-  assert.deepEqual(SOON.map((x) => x[0]), ["strategie", "schieben", "rennen", "brett", "schaetzen", "bluff", "skala"]);
-  for (const l of ["de", "en"]) for (const k of ["create_art_card", "create_art_meme", "create_art_game", "create_art_quiz", "create_art_faehigkeit", "create_genre_G1", "create_genre_G2", "create_mode_allein", "create_mode_bot", "create_mode_duell", "create_mode_bot_off", "create_mode_duell_G1", "create_mode_duell_G2", ...SOON.map((x) => "create_soon_" + x[0])]) assert.ok(FREI_TEXTS[l][k], l + " " + k);
+  for (const l of ["de", "en"]) for (const k of ["create_art_card", "create_art_meme", "create_art_game", "create_art_quiz", "create_art_faehigkeit", "create_genre_G1", "create_genre_G2", "create_mode_allein", "create_mode_bot", "create_mode_duell", "create_mode_bot_off", "create_mode_duell_G1", "create_mode_duell_G2"]) assert.ok(FREI_TEXTS[l][k], l + " " + k);
   assert.deepEqual(Object.keys(FREI_TEXTS.de).sort(), Object.keys(FREI_TEXTS.en).sort(), "de und en haben dieselben Schluessel");
 });
 

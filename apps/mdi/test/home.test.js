@@ -371,3 +371,26 @@ test("Echtzeitkarten: Startansicht dunkel (rt-dark), Doppelknopf aus play.offer,
   const turn = go(start(), { type: "OPEN", id: "zug-einkauf" });
   assert.ok(!texts(turn).includes("rt-dark") && actionsOf(turn).primary.id === "go", "Zugkarten wie bisher");
 });
+
+test("Keine Dubletten (User 17.11.): Wand je Link einmal, Gemerkt je Karte einmal (auch Alias), Einladungen je Link einmal, Letzte Tage je Karte einmal", () => {
+  // Wand: teilen, Einladung loeschen, dasselbe Werk erneut teilen
+  let s = go(go(start(), { type: "OPEN", id: "gruss" }), { type: "GO" });
+  const f = s.ctx.mine.invites[0].f;
+  s = go(go(s, { type: "BACK" }), { type: "BACK" });
+  s = go(s, { type: "HOME", to: "meins", tab: "einladungen" });
+  s = go(go(s, { type: "INV_DELETE", f }), { type: "INV_DELETE", f });
+  s = go(go(s, { type: "OPEN", id: "gruss" }), { type: "GO" });
+  assert.equal(s.ctx.mine.wall.filter((e) => e.f === f).length, 1, "Werk nur einmal auf der Wand");
+  // Gemerkt: neue und alte Kennung derselben Karte
+  let g = go(go(start(), { type: "MERKEN", id: "zug-bluff" }), { type: "MERKEN", id: "bluff" });
+  assert.equal(g.ctx.mine.saved.length, 0, "bluff ist dieselbe Karte wie zug-bluff: zweites Tippen nimmt sie wieder heraus");
+  assert.equal(S.mergeRemote({ saved: [{ id: "zug-bluff", ts: 2 }] }, { saved: [{ id: "bluff", ts: 1 }] }).saved.length, 1, "Profilabgleich");
+  // Einladungen beim Laden
+  assert.equal(S.cleanInvites([{ f, c: "gruss", ts: 1 }, { f, c: "gruss", ts: 2 }]).length, 1);
+  // Letzte Tage (31): jede Karte einmal
+  let t = go(start(), { type: "HOME", to: "regal", rtab: "tage" });
+  const past = [];
+  JSON.stringify(view(t, () => {}), (k, x) => { if (k === "aria-label" && typeof x === "string" && x.startsWith("Blatt vom")) past.push(x.split(": ").slice(1).join(": ")); return x; });
+  assert.ok(past.length >= 14, past.length + " Tage");
+  assert.equal(new Set(past).size, past.length, "Letzte Tage ohne Wiederholung");
+});

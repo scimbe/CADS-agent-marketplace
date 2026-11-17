@@ -5,9 +5,9 @@
 // Nebenaktionen (04-ux/disclosure). Texte: ./texts.js (Altcode-Schluessel unveraendert).
 import { ft } from "./texts.js";
 
-/** D: { h, matches, render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } */
+/** D: { h, matches, render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams } */
 export function makeFreiView(D) {
-const { h, render, rng, cardOf, cardIdOf, manifestOf, crisis, ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } = D;
+const { h, render, rng, cardOf, cardIdOf, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams } = D;
 const machine = { matches: D.matches };
 const kState = (state) => ["pruefen", "anonym", "anmelden", "angemeldet", "abmelden", "fehler"].find((s) => machine.matches(state, "konto." + s));
 const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
@@ -132,14 +132,7 @@ function startView(state, dispatch) {
   if (f.art === "game") {
     // G3 (ganz neues Spiel aus einem Satz) ist hervorgehoben (Gate-C-Auflage), gewaehlt wird es nur ausdruecklich
     panel.push(chips("genre", ft(lang, "create_genre"), GENRES.map((g) => ({ value: g, label: ft(lang, "create_genre_" + g), ...(g === "G3" ? { cls: "neu", badge: ft(lang, "create_genre_G3_neu") } : {}) })), f.genre, (genre) => dispatch({ type: "GENRE", genre }), f.last.art === "game" ? f.last.genre : "", lang));
-    panel.push(chips("soon", ft(lang, "create_soon"), SOON.map((x) => ({ value: x[0], label: ft(lang, "create_soon_" + x[0]) })), f.soon ? f.soon.id : "", (id) => dispatch({ type: "SOON_PICK", id }), "", lang));
-    if (f.soon) {
-      const name = ft(lang, "create_soon_" + f.soon.id).replace(/^\S+\s/, "");
-      panel.push(status(ft(lang, "create_soon_no", { x: name }), "hint strong", "soonno"));
-      if (typeof f.soon.near === "string") panel.push(h("button", { type: "button", class: "seg-opt", key: "soong", "data-act": "soon-genre", on: { click: () => dispatch({ type: "GENRE", genre: f.soon.near }) } }, "→ " + ft(lang, "create_genre_" + f.soon.near)));
-      else if (f.soon.near.length) panel.push(...catalogButtons(f.soon.near, lang, dispatch, ft(lang, "create_soon_near")));
-      else panel.push(h("p", { class: "hint", key: "soonn" }, ft(lang, "create_soon_nonear")));
-    }
+    // Keine „Bald:“-Chips und kein Ausweichen auf ein anderes Spiel (User 17.11.: nichts anbieten, was es nicht gibt)
     if (f.genre === "G3") panel.push(h("p", { class: "hint", key: "g3x", "data-k": "g3-x" }, ft(lang, "create_genre_G3_x")));
     else if (f.genre) {
       const m = MODES[f.genre];
