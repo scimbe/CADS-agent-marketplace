@@ -6,7 +6,7 @@
 #   tools/staging/stage.sh tunnel          # ssh -L 18794:127.0.0.1:18794 -> http://127.0.0.1:18794/duell
 set -euo pipefail
 HOST="${STAGING_HOST:-ssh.labor-setup.de}"
-case "$HOST" in ssh.labor-setup.de|labor-setup.de) ;; *) echo "ABBRUCH: Staging nur auf labor-setup.de, nicht $HOST" >&2; exit 2 ;; esac
+case "$HOST" in ssh.labor-setup.de|labor-setup.de|labor-de-direkt) ;; *) echo "ABBRUCH: Staging nur auf labor-setup.de, nicht $HOST" >&2; exit 2 ;; esac   # labor-de-direkt = gleicher Host per eduVPN-IP
 PORT="${STAGING_PORT:-18794}"
 D="$(cd "$(dirname "$0")" && pwd)"
 if [ "${1:-}" = tunnel ]; then
