@@ -4,6 +4,7 @@
 // Liste des Vertrags (keine Bilder aus dem Netz). Das Mikrofon nutzt die Spracherkennung des Browsers, wenn es sie gibt,
 // und sagt sonst ehrlich, dass es hier nicht geht; was gehoert wurde, steht danach im Feld wie getippt.
 import { kt } from "./klaeren-texts.js";
+import { createSpielHost } from "../../broker/spiel-host.js";
 
 /** D: { h, K } (K: ./klaerung.js, der Vertrag) */
 export function makeKlaerenView(D) {
@@ -134,6 +135,8 @@ export function makeKlaerenView(D) {
   function bauenView(ctx, dispatch) {
     const lang = ctx.lang, k = ctx.frei.k, n = k.liste ? k.liste.punkte.length : 0;
     const step = (key, label, st, done) => h("li", { key, class: done ? "done" : "" }, h("span", { class: "k-dot", "aria-hidden": "true" }, done ? svg(CHECK, 18) : null), h("span", { class: "k-s-t" }, label), h("span", { class: "k-s-st" }, st));
+    // nur Kanaele, die der Server zustellen kann; Mitteilungen erst, wenn dieses Geraet ein Push-Abo hat (pushMark)
+    const kanaele = ["mail", "push"].filter((x) => k.kanaele[x] && (x !== "push" || !!k.pushMark));
     const box = (kanal, label) => h("label", { class: "k-check", key: kanal },
       h("input", { type: "checkbox", "data-act": "k-optin-" + kanal, checked: k.optin[kanal], disabled: k.busy ? true : null, on: { change: (e) => dispatch({ type: "K_OPTIN", kanal, on: e.target.checked }) } }), h("span", null, label));
     const body = [
@@ -144,30 +147,59 @@ export function makeKlaerenView(D) {
         step("bau", kt(lang, "k_s_bau"), kt(lang, "k_st_wartet"), false),
         step("probe", kt(lang, "k_s_probe"), kt(lang, "k_st_danach"), false),
         step("pruef", kt(lang, "k_s_pruef", { n }), kt(lang, "k_st_danach"), false)),
-      status(kt(lang, "k_bauen_p1"), "hint strong", "p1"),
+      status(kt(lang, "k_bauen_p3"), "hint strong", "p3"),
       h("p", { class: "hint", key: "d" }, kt(lang, "k_dauer")),
-      h("fieldset", { class: "k-optin", key: "o" }, h("legend", null, kt(lang, "k_optin_h")), box("push", kt(lang, "k_optin_push")), box("mail", kt(lang, "k_optin_mail")), h("p", { class: "hint" }, kt(lang, "k_optin_note"))),
+      kanaele.length ? h("fieldset", { class: "k-optin", key: "o" }, h("legend", null, kt(lang, "k_optin_h")), kanaele.map((x) => box(x, kt(lang, "k_optin_" + x))), h("p", { class: "hint" }, kt(lang, "k_optin_note")))
+        : h("p", { class: "hint", key: "o0" }, kt(lang, "k_optin_keins")),
       k.optErr ? h("p", { class: "warn", role: "alert", key: "oe" }, kt(lang, "k_optin_err")) : null];
-    return { body, primary: a("k-home", kt(lang, "k_home"), "K_HOME", { cls: "k-go" }), secondary: [] };
+    return { body, primary: a("k-home", kt(lang, "k_home"), "K_HOME", { cls: "k-go" }), secondary: [a("k-stand", kt(lang, "k_stand"), { type: "K_FERTIG", auftrag: k.auftrag })] };
   }
 
   // ---- 5 Fertig / Melden --------------------------------------------------------------------------------------------
-  const resultList = (lang, f, only) => h("ul", { class: "k-result", key: "res" }, (only ? f.punkte.filter((p) => !p.erfuellt) : f.punkte).map((p) => h("li", { key: p.id, "data-punkt": p.id, "data-ok": p.erfuellt ? "1" : "0" },
-    h("span", { class: p.erfuellt ? "k-yes" : "k-no" }, kt(lang, p.erfuellt ? "k_erfuellt" : "k_fehlt")), h("span", null, p.text + (p.notiz ? " – " + p.notiz : "")))));
-  function fertigView(ctx) {
+  const resultList = (lang, f, only) => h("ul", { class: "k-result", key: "res" }, (only ? f.punkte.filter((p) => !p.erfuellt) : f.punkte).map((p) => h("li", { key: p.id, "data-punkt": p.id, "data-ok": p.erfuellt ? "1" : "0", "data-geprueft": p.geprueft },
+    h("span", { class: p.erfuellt ? "k-yes" : "k-no" }, kt(lang, p.erfuellt ? "k_erfuellt" : "k_fehlt")),
+    h("span", null, p.text + (p.notiz ? " – " + p.notiz : ""), h("span", { class: "k-pruef" }, kt(lang, p.geprueft === "gespielt" ? "k_gespielt" : "k_gelesen"))))));
+  const kostenLine = (lang, f) => status(f.abgebucht ? kt(lang, "k_ab", { n: f.kosten }) : kt(lang, "k_nichts_ab"), "hint", "ab");
+
+  /** Probe: das gepruefte Modul im Sandbox-Rahmen vom Spiel-Ursprung (Spielmodus; entscheidet nichts) */
+  function probe(lang, f, k) {
+    const p = k.probe;
+    if (!p) return null;
+    if (p.how === "busy") return status(kt(lang, "k_probe_lade"), "hint", "pl");
+    if (p.how !== "ok") return h("p", { class: "warn", role: "alert", key: "pe", "data-how": p.how }, kt(lang, "k_probe_e_" + (["hash", "nicht-hier", "ursprung"].includes(p.how) ? p.how.replace("-", "_") : "netz")));
+    return h("div", { class: "k-probe", key: "probe-" + p.sha256, ref: (el) => {
+      const host = createSpielHost({ doc: el.ownerDocument, win: el.ownerDocument.defaultView, mount: el, frameUrl: f.spiel.rahmen, onEvent: () => {} });
+      host.start({ mode: "play", code: p.code, seed: "probe", lang: lang === "en" ? "en" : "de" });
+    } });
+  }
+
+  function fertigView(ctx, dispatch) {
     const lang = ctx.lang, k = ctx.frei.k, f = k.fertig;
     if (!f) return { body: [k.err ? errLine(lang, k.err) : status(kt(lang, "k_fertig_lade"))], primary: null, secondary: [] };
-    const body = [h("h2", { class: "k-h", key: "h" }, f.titel), resultList(lang, f, false),
-      status(f.fehlt === 0 ? kt(lang, "k_alles") : f.fehlt === 1 ? kt(lang, "k_fehlt_1") : kt(lang, "k_fehlt_n", { n: f.fehlt }), "hint strong", "fs")];
-    if (f.wartet) return { body: [h("h2", { class: "k-h", key: "h" }, f.titel), status(kt(lang, "k_nach_ok", { n: f.left }), "k-ok", "nb"), h("p", { class: "hint", key: "wt" }, kt(lang, "k_nach_wartet")), errLine(lang, k.err)], primary: null, secondary: [] };
+    const neu = a("k-neu", kt(lang, "k_neu_laden"), "K_STATUS", { disabled: !!k.busy });
+    if (f.gescheitert) return { body: [h("h2", { class: "k-h", key: "h" }, f.titel), status(kt(lang, "k_gescheitert_" + f.gescheitert), "warn", "gs"), errLine(lang, k.err)], primary: a("k-home", kt(lang, "k_home"), "BACK", { cls: "k-go" }), secondary: [] };
+    if (f.wartet && f.baut) return { body: [h("h2", { class: "k-h", key: "h" }, kt(lang, "k_baut_h")), h("p", { class: "k-titel", key: "t" }, f.titel), status(kt(lang, "k_baut"), "hint strong", "bt"), errLine(lang, k.err)], primary: neu, secondary: [] };
+    if (f.wartet) return { body: [h("h2", { class: "k-h", key: "h" }, f.titel), status(kt(lang, "k_nach_ok", { n: f.left }), "k-ok", "nb"), h("p", { class: "hint", key: "wt" }, kt(lang, "k_nach_wartet")), errLine(lang, k.err)], primary: neu, secondary: [] };
+    const body = [h("h2", { class: "k-h", key: "h" }, f.titel),
+      f.hinweis ? status(kt(lang, "k_nach_alt"), "warn", "hw") : null,
+      resultList(lang, f, false),
+      status(f.fehlt === 0 ? kt(lang, "k_alles") : f.fehlt === 1 ? kt(lang, "k_fehlt_1") : kt(lang, "k_fehlt_n", { n: f.fehlt }), "hint strong", "fs"),
+      f.punkte.some((p) => p.geprueft === "gelesen") ? h("p", { class: "hint", key: "gl" }, kt(lang, "k_gelesen_hint")) : null,
+      f.fehlt === 0 || f.behalten ? kostenLine(lang, f) : null,
+      probe(lang, f, k)];
     if (f.gemeldet) body.push(status(kt(lang, "k_meld_frei"), "k-ok", "gm"));
-    if (f.behalten) body.push(status(kt(lang, "k_behalten_frei"), "k-ok", "bh"));
+    if (f.behalten) body.push(status(f.abgebucht ? kt(lang, "k_behalten_ab", { n: f.kosten }) : kt(lang, "k_behalten_frei"), "k-ok", "bh"));
+    const nachOk = f.fehlt > 0 && !f.behalten && !f.gemeldet && f.left > 0;
+    if (nachOk) body.push(h("div", { class: "k-field", key: "nt" },
+      h("label", { for: "k-nachtext" }, kt(lang, "k_nach_label")),
+      h("textarea", { id: "k-nachtext", class: "k-input", rows: "2", maxlength: String(K.NACHBESSERN_TEXT_MAX), placeholder: kt(lang, "k_nach_ph"), value: k.nachText, on: { input: (e) => dispatch({ type: "K_NACH_TEXT", value: e.target.value }) } })));
     body.push(errLine(lang, k.err));
     const sec = [];
     // Nachbessern, solange der Server noch welche zaehlt; danach steht "Melden" an seiner Stelle
     if (f.fehlt > 0 && !f.behalten && !f.gemeldet) sec.push(f.left > 0 ? a("k-nach", kt(lang, "k_nach"), "K_NACHBESSERN", { sub: kt(lang, "k_nach_sub", { n: f.left }), disabled: !!k.busy }) : a("k-melden-open", kt(lang, "k_melden"), "K_MELDEN_OPEN"));
-    if (!f.behalten) sec.push(a("k-behalten", kt(lang, "k_behalten"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: f.kosten }), disabled: !!k.busy }));
-    return { body, primary: null, secondary: sec };
+    if (!f.behalten && f.fehlt > 0) sec.push(a("k-behalten", kt(lang, "k_behalten"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: f.kosten }), disabled: !!k.busy }));
+    const primary = k.probe && k.probe.how === "ok" ? a("k-probe-zu", kt(lang, "k_probe_zu"), "K_PROBE_ZU") : a("k-probe", kt(lang, "k_probe"), "K_PROBE", { cls: "k-go", disabled: !!(k.probe && k.probe.how === "busy") });
+    return { body, primary, secondary: sec };
   }
   function meldenView(ctx, dispatch) {
     const lang = ctx.lang, k = ctx.frei.k, f = k.fertig, n = f.punkte.length;
@@ -184,7 +216,7 @@ export function makeKlaerenView(D) {
           h("p", { class: "hint", id: "k-meld-hint" }, kt(lang, "k_meld_hint"))));
       if (k.meld && k.meld.how !== "ok") body.push(errLine(lang, k.meld, "me"));
     }
-    if (f.behalten) body.push(status(kt(lang, "k_behalten_frei"), "k-ok", "bh"));
+    if (f.behalten) body.push(status(f.abgebucht ? kt(lang, "k_behalten_ab", { n: f.kosten }) : kt(lang, "k_behalten_frei"), "k-ok", "bh"));
     body.push(errLine(lang, k.err));
     return { body, primary: f.gemeldet ? null : a("k-melden", kt(lang, "k_melden"), "K_MELDEN", { cls: "k-go", disabled: !!k.busy }),
       secondary: f.behalten ? [] : [a("k-behalten", kt(lang, "k_trotzdem"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: f.kosten }), disabled: !!k.busy })] };
@@ -199,7 +231,7 @@ export function makeKlaerenView(D) {
     const ctx = state.ctx, lang = ctx.lang;
     const r = leaf === "klaeren" ? satzView(ctx, dispatch) : leaf === "kwarten" ? waitView(ctx, "k_warten") : leaf === "kfrage" ? frageView(ctx, dispatch)
       : leaf === "klwarten" ? waitView(ctx, "k_warten_liste") : leaf === "kliste" ? listeView(ctx) : leaf === "kbauen" ? bauenView(ctx, dispatch)
-        : leaf === "kfertig" ? fertigView(ctx) : leaf === "kmelden" ? meldenView(ctx, dispatch) : null;
+        : leaf === "kfertig" ? fertigView(ctx, dispatch) : leaf === "kmelden" ? meldenView(ctx, dispatch) : null;
     if (!r) return null;
     const mine = leaf === "kfertig" || leaf === "kmelden";
     return { body: r.body.filter(Boolean), panel: [], actions: { primary: r.primary, secondary: r.secondary }, heading: kt(lang, mine ? "k_head_mine" : "k_head"), cls: "k-screen" };

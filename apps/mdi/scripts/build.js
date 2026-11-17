@@ -11,6 +11,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src"), DIST = path.join(ROOT, "dist");
 export const WC = "https://webconference.bunsenbrenner.org";
 // Eltern, die den Live-Rahmen der Webkonferenz einbetten duerfen (= PLAY_ALLOWED_ORIGINS der Bruecke); per Umgebung aenderbar
+// Freie Karte 2: eigener Ursprung der Spiel-Sandbox (statischer Spiel-Dienst, bau/spiel-dienst.mjs); per Umgebung fuer Staging
+export const SPIEL_ORIGIN = process.env.MDI_SPIEL_ORIGIN || "https://spiel-f29c55da.bunsenbrenner.org";
 export const PLAY_PARENTS = String(process.env.MDI_PLAY_PARENTS || "https://demos-34a13a96.bunsenbrenner.org,https://bunsenbrenner.org").split(",").map((x) => x.trim()).filter(Boolean);
 
 if (process.argv.includes("--flavor")) console.log("build: --flavor wird in D0 ignoriert (Business-Sicht ist Slice S14b)");
@@ -129,7 +131,7 @@ export async function build() {
     // Feature-Teile: im Kern nur das Register, die Module kommen als Teil (ADR 0001 Nachtrag 4)
     b.onResolve({ filter: /gen\/fparts\.js$/ }, (a) => { const p = path.resolve(a.resolveDir, a.path); return p === path.join(SRC, "gen/fparts.js") ? { path: path.join(SRC, "app/fparts-lazy.js") } : undefined; });
   } };
-  const core = await esbuild.build({ ...common, entryPoints: [path.join(SRC, "main.js")], plugins: [lazyRegister], define: { __PARTS__: JSON.stringify(parts), __LIVE_REMOTE__: JSON.stringify(liveRemote), __CARD_PARTS__: JSON.stringify(cp.parts), __CARD_CAPS__: JSON.stringify(cp.caps), __THUMB_PARTS__: JSON.stringify(tp.thumbs), __FEAT_PARTS__: JSON.stringify(fp.parts) } });
+  const core = await esbuild.build({ ...common, entryPoints: [path.join(SRC, "main.js")], plugins: [lazyRegister], define: { __SPIEL_ORIGIN__: JSON.stringify(SPIEL_ORIGIN), __PARTS__: JSON.stringify(parts), __LIVE_REMOTE__: JSON.stringify(liveRemote), __CARD_PARTS__: JSON.stringify(cp.parts), __CARD_CAPS__: JSON.stringify(cp.caps), __THUMB_PARTS__: JSON.stringify(tp.thumbs), __FEAT_PARTS__: JSON.stringify(fp.parts) } });
   const js = core.outputFiles[0].text.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
   const anton = fs.readFileSync(path.join(ROOT, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2"));
   // tokens.css (Strang H) + Widget-/Buehnen-Stile (Strang F, src/render/widgets.css)
@@ -143,7 +145,8 @@ export async function build() {
     "font-src data:", "img-src data: blob:",
     // Konto/Profil/Guthaben: nur der eigene Server (/api/duell, /auth/me, gleiche Herkunft). Live braucht im Kern nichts:
     // dessen Netz laeuft im abgeschotteten Rahmen mit eigener CSP.
-    "connect-src 'self'", "frame-src 'self' " + liveRemote.src,
+    // Freie Karte 2: "Probe spielen" holt das gepruefte Modul vom Spiel-Ursprung und bettet dessen Sandbox-Rahmen ein
+    "connect-src 'self' " + SPIEL_ORIGIN, "frame-src 'self' " + liveRemote.src + " " + SPIEL_ORIGIN + "/frame.html",
     "base-uri 'none'", "form-action 'none'", "object-src 'none'"
   ].join("; ");
   const tpl = fs.readFileSync(path.join(SRC, "index.template.html"), "utf8");

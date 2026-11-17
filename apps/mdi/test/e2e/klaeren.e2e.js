@@ -8,6 +8,12 @@ import assert from "node:assert/strict";
 import { browser, VIEWS, act, axe, noOverflow, shotsDir } from "./lib/grund.mjs";
 import { fakeWrapper, APP } from "./lib/fakewrapper.mjs";
 import { fakeFrei } from "./lib/fakefrei.mjs";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { ROOT } from "./lib/grund.mjs";
+import { buildSpiel } from "../../scripts/spiel/build.mjs";
+import { kopfzeilen } from "../../bau/spiel-dienst.mjs";
 
 let b;
 test.before(async () => { b = await browser(); });
@@ -76,11 +82,28 @@ const LISTE = { titel: "Segelboot gegen Piraten", verstehe: "Ein Spiel mit Wasse
   { id: "p3", text: "Von oben segeln Reihen von Piratenbooten heran und kommen näher.", pruefung: "Nach 10 Sekunden sind die Boote tiefer." },
   { id: "p4", text: "Normal schwer: 3 Leben, mit jeder Runde etwas schneller.", pruefung: "Runde 2 ist messbar schneller." }],
   nicht: ["Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."], dauerMaxMin: 15, kosten: { guthaben: 1, nurBeiErfolg: true } };
+// Freie Karte 2 (P3): der Spiel-Ursprung mit den Kopfzeilen des statischen Spiel-Dienstes (bau/spiel-dienst.mjs) und ein Modul
+const SPIEL_O = "https://spiel-f29c55da.bunsenbrenner.org";
+const MODUL = fs.readFileSync(path.join(ROOT, "src/spiel/beispiele/invaders.js"), "utf8"), SHA = createHash("sha256").update(MODUL).digest("hex");
+async function spielUrsprung(ctx) {
+  const built = await buildSpiel(), cfg = { spielOrigin: SPIEL_O, appOrigins: [APP] }, seen = [];
+  await ctx.route(SPIEL_O + "/**", (r) => {
+    const u = new URL(r.request().url()), h = r.request().headers(), anfrage = { required: h["sec-required-csp"], origin: h.origin };
+    seen.push(u.pathname);
+    const f = built.frame[u.pathname.slice(1)];
+    if (f) return r.fulfill({ status: 200, headers: kopfzeilen(cfg, f.type, Buffer.byteLength(f.body), anfrage), body: f.body });
+    if (u.pathname === "/m/" + SHA + ".js") return r.fulfill({ status: 200, headers: kopfzeilen(cfg, "modul", Buffer.byteLength(MODUL), anfrage), body: MODUL });
+    return r.fulfill({ status: 404, body: "" });
+  });
+  return seen;
+}
 /** Attrappe des Servers; nachbessern zaehlt hier wie dort (der Client zaehlt nie) */
 async function fakeKlaerung(ctx) {
   const S = { log: [], left: 3, gemeldet: false, an: true };
   const json = (status, body) => ({ status, contentType: "application/json; charset=utf-8", body: JSON.stringify(body) });
-  const status = () => ({ titel: LISTE.titel, status: "fertig", kosten: 1, nachbessernLeft: S.left, gemeldet: S.gemeldet, behalten: false, ergebnis: { titel: LISTE.titel, fehlt: 1, punkte: LISTE.punkte.map((p, i) => ({ id: p.id, text: p.text, erfuellt: i !== 3, notiz: i === 3 ? "bleibt gleich schnell" : "" })) } });
+  const status = () => ({ titel: LISTE.titel, status: "fertig", kosten: 1, abgebucht: false, grund: null, hinweis: null, nachbessernLeft: S.left, gemeldet: S.gemeldet, behalten: false,
+    spiel: { rahmen: SPIEL_O + "/frame.html", modul: SPIEL_O + "/m/" + SHA + ".js", sha256: SHA },
+    ergebnis: { titel: LISTE.titel, fehlt: 1, punkte: LISTE.punkte.map((p, i) => ({ id: p.id, text: p.text, erfuellt: i !== 3, notiz: i === 3 ? "Die Boote werden noch nicht schneller." : "", geprueft: i === 2 ? "gelesen" : "gespielt" })) } });
   await ctx.route(APP + "/api/duell/klaerung/**", async (r) => {
     const op = new URL(r.request().url()).pathname.split("/").pop(); let b = {}; try { b = r.request().postDataJSON() || {}; } catch (e) { b = {}; }
     S.log.push(op + " " + JSON.stringify(b));
@@ -88,8 +111,8 @@ async function fakeKlaerung(ctx) {
     if (op === "fragen") return r.fulfill(json(200, FRAGEN));
     if (op === "antwort") return r.fulfill(/Raketen/.test(b.text) ? json(422, { error: "refused", reason: "weapons", vorschlaege: [0, 2] }) : json(200, { ok: true, text: b.text }));
     if (op === "liste") return r.fulfill(json(200, LISTE));
-    if (op === "auftrag") return r.fulfill(json(202, { auftrag: AUF, status: "bestaetigt" }));
-    if (op === "optin") return r.fulfill(json(200, { optin: { push: b.push, mail: b.mail } }));
+    if (op === "auftrag") return r.fulfill(json(202, { auftrag: AUF, status: "bestaetigt", kanaele: { push: true, mail: true } }));
+    if (op === "optin") return r.fulfill(json(200, { optin: { push: b.push, mail: b.mail }, kanaele: { push: true, mail: true } }));
     if (op === "status") return r.fulfill(json(200, status()));
     if (op === "nachbessern") { if (S.left <= 0) return r.fulfill(json(409, { error: "limit" })); S.left--; return r.fulfill(json(200, { nachbessernLeft: S.left })); }
     if (op === "melden") { S.gemeldet = true; return r.fulfill(json(200, { gemeldet: true, kosten: { erlassen: true } })); }
@@ -129,10 +152,12 @@ for (const view of ["phone360", "phone390", "desk1280"]) {
     assert.match(await p.locator("main").innerText(), new RegExp("„" + EIGEN + "“"));
     await checks(p, view + "-k5-liste", found);
     await act(p, "k-ja"); await screenIs(p, "frei-kbauen");
-    await p.locator('[data-act="k-optin-push"]').check();
-    await p.waitForFunction(() => document.querySelector('[data-act="k-optin-push"]').checked && !document.querySelector('[data-act="k-optin-push"]').disabled);
+    // Mitteilung nur mit Push-Abo dieses Geraets (der Neuentwurf hat keins): angeboten wird nur die E-Mail
+    assert.equal(await p.locator('[data-act="k-optin-push"]').count(), 0);
+    await p.locator('[data-act="k-optin-mail"]').check();
+    await p.waitForFunction(() => document.querySelector('[data-act="k-optin-mail"]').checked && !document.querySelector('[data-act="k-optin-mail"]').disabled);
     await checks(p, view + "-k6-bauen", found);
-    assert.ok(S.log.some((l) => l.startsWith("optin") && l.includes('"push":true')), S.log.join(" | "));
+    assert.ok(S.log.some((l) => l.startsWith("optin") && l.includes('"mail":true')), S.log.join(" | "));
     assert.ok(S.log.some((l) => l.startsWith("liste") && l.includes(EIGEN)));
     assert.deepEqual(found, []); assert.deepEqual(errs, []);
   });
@@ -141,13 +166,22 @@ for (const view of ["phone360", "phone390", "desk1280"]) {
 test("Fertig: Nachbessern noch 3× bis 0 (Server zaehlt), dann Melden mit Entschuldigung und Freitext, Trotzdem behalten", async () => {
   const fw = fakeWrapper(), ff = fakeFrei(fw, { karte: "karte-ok-card" }), found = [];
   const { p, errs, ctx } = await openApp(fw, ff);
-  const S = await fakeKlaerung(ctx);
+  const S = await fakeKlaerung(ctx), seen = await spielUrsprung(ctx);
   await loginFromFrei(p, fw);
   // Ziel der Mitteilung/E-Mail (P3): ?go=fertig&auftrag=<id>
   await p.goto(APP + "/duell?go=fertig&auftrag=" + AUF);
   await screenIs(p, "frei-kfertig");
   assert.match(await p.locator('[data-act="k-nach"]').innerText(), /noch 3×/);
+  assert.match(await p.locator("main").innerText(), /nicht automatisch prüfbar/);
   await checks(p, "k7-fertig", found);
+  // Probe spielen: Modul vom Spiel-Ursprung (Hash geprueft), Rahmen mit der CSP des Spiel-Dienstes, Spiel startet
+  await act(p, "k-probe");
+  const fr = p.frameLocator("iframe.spielrahmen");
+  await fr.locator("canvas").waitFor();
+  assert.deepEqual([...new Set(seen)].sort(), ["/frame.css", "/frame.html", "/frame.js", "/m/" + SHA + ".js"]);
+  await checks(p, "k7a-probe", found);
+  await act(p, "k-probe-zu");
+  await p.locator("iframe.spielrahmen").waitFor({ state: "detached" });
   for (const n of [2, 1, 0]) {
     await act(p, "k-nach");
     await p.getByText("Wir bauen neu und prüfen wieder", { exact: false }).waitFor();
@@ -163,5 +197,8 @@ test("Fertig: Nachbessern noch 3× bis 0 (Server zaehlt), dann Melden mit Entsch
   await checks(p, "k8-melden", found);
   await act(p, "k-melden");
   await p.getByText("Die Karte kostet dich nichts.", { exact: false }).first().waitFor();
-  assert.deepEqual(found, []); assert.deepEqual(errs, []);
+  // die Selbstpruefung des Spielrahmens (spiel-frame.js selfCheck) laedt absichtlich ein data:-Bild, das seine CSP sperren MUSS
+  const probe = (e) => e === "console CSP img-src data" || e.startsWith("console Loading the image 'data:,' violates the following Content Security Policy directive: \"img-src 'none'\"");
+  assert.equal(errs.filter(probe).length, 2, "Sperre der Bild-Probe im Rahmen gemeldet (CSP aktiv)");
+  assert.deepEqual(found, []); assert.deepEqual(errs.filter((e) => !probe(e)), []);
 });

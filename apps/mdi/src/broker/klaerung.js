@@ -4,7 +4,7 @@
 //
 //   -> { how: "ok", body } | { how, reason?, help?, vorschlaege?, frage? }
 //   how: login | age16 | paused | throttled | daily | crisis | refused | blocked | bad | bad-request | gone | limit |
-//        conflict | unknown | off | llm-off | store-off | auth-off | server (any other status, with status) | netz | nicht-hier
+//        conflict | unknown | guthaben | off | llm-off | store-off | auth-off | server (any other status, with status) | netz | nicht-hier
 
 export const OPS = ["an", "fragen", "antwort", "liste", "auftrag", "optin", "status", "nachbessern", "melden", "behalten"];
 
@@ -21,6 +21,7 @@ export function klaerVerdict(status, body) {
       vorschlaege: Array.isArray(b.vorschlaege) ? b.vorschlaege.filter(Number.isInteger).slice(0, 2) : [], ...(Number.isInteger(b.frage) ? { frage: b.frage } : {}) };
   }
   if (status === 400) return { how: "bad-request" };
+  if (status === 402) return { how: "guthaben" };
   if (status === 502) return { how: "bad" };
   if (status === 410) return { how: "gone" };
   if (status === 409) return b.error === "limit" ? { how: "limit" } : { how: "conflict", reason: typeof b.error === "string" ? b.error.slice(0, 30) : "" };
