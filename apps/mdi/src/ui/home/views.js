@@ -183,11 +183,15 @@ function weekRow(ctx, X, dispatch) {
     grid(tiles, "h-week"));
 }
 
+// Gemerkt: nur, was als Kachel erscheinen kann (die Zahl im Reiter passt zu den Kacheln)
+function savedVisible(saved) { return saved.filter((s) => { const idea = R.byId(catalogIdOf(s.id)); return (idea && R.IDEAS.includes(idea)) || extras().some((e) => e.id === s.id); }); }
+
 function lastDaysRow(ctx, X, dispatch, n = 7) {
-  const days = R.lastDays(new Date(ctx.today * R.DAY), n, caps());
-  return section(X.lastDays, h("ol", { class: "h-days" }, days.map((d, i) => {
+  // jede Karte nur einmal, mit dem juengsten Tag (User 17.11.: keine Wiederholungen); der Knopf fuehrt zu genau diesem Tag
+  const days = R.lastDays(new Date(ctx.today * R.DAY), n, caps()).map((d, i) => ({ ...d, back: i + 1 })).filter((d, i, a) => a.findIndex((x) => x.idea.id === d.idea.id) === i);
+  return section(X.lastDays, h("ol", { class: "h-days" }, days.map((d) => {
     const dp = dateParts(d.n, X), t = plateLines(ideaText(d.idea, ctx.lang).t).join(" "), fam = familyOf(d.idea.id) || family("gruessen");
-    return h("li", { key: d.key }, h("button", { type: "button", class: "h-day", "data-act": "past-" + (i + 1), "aria-label": fmt(X.dayOf, { d: dp.num + ". " + dp.mon }) + ": " + t, on: { click: () => dispatch({ type: "HOME", to: "day", off: -(i + 1) }) } },
+    return h("li", { key: d.key }, h("button", { type: "button", class: "h-day", "data-act": "past-" + d.back, "aria-label": fmt(X.dayOf, { d: dp.num + ". " + dp.mon }) + ": " + t, on: { click: () => dispatch({ type: "HOME", to: "day", off: -d.back }) } },
       h("span", { class: "h-day-d fam-" + fam.id }, dp.num), h("span", { class: "h-day-t" }, t), newIdOf(d.idea.id) ? null : h("span", { class: "h-soon small" }, X.soon)));
   })), { key: "last", id: "h-last" });
 }
@@ -295,7 +299,7 @@ function meinsView(state, X, dispatch) {
   out.push(tabs([
     { id: "wand", label: X.mtabs.wand + " " + mine.wall.length, ev: { type: "MTAB", tab: "wand" } },
     { id: "einladungen", label: X.mtabs.einladungen + " " + mine.invites.length, ev: { type: "MTAB", tab: "einladungen" } },
-    { id: "gemerkt", label: X.mtabs.gemerkt + " " + mine.saved.length, ev: { type: "MTAB", tab: "gemerkt" } }
+    { id: "gemerkt", label: X.mtabs.gemerkt + " " + savedVisible(mine.saved).length, ev: { type: "MTAB", tab: "gemerkt" } }
   ], tab, dispatch, X.meins));
   const panel = [h("p", { class: "h-sync", key: "sync" }, linked ? X.sync.on : X.sync.off)];
   const note = ctx.home.note;
@@ -329,7 +333,7 @@ function meinsView(state, X, dispatch) {
           h("button", { type: "button", class: "btn secondary h-small h-danger", "data-act": "inv-del-" + i, disabled: mine.busy === x.f || null, on: { click: () => dispatch({ type: "INV_DELETE", f: x.f }) } }, ctx.home.sure === x.f ? X.invSure : X.invDelete)));
     })));
   } else {
-    if (!mine.saved.length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.savedEmpty));
+    if (!savedVisible(mine.saved).length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.savedEmpty));
     else panel.push(grid(mine.saved.map((s) => {
       const idea = R.byId(catalogIdOf(s.id));
       if (idea && R.IDEAS.includes(idea)) return ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: mine.saved, thumbs: ctx.thumbs, key: "g-" + s.id });

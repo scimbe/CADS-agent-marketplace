@@ -25,7 +25,7 @@ export function sane(j, sanitize) {
   const revoked = (Array.isArray(j.revoked) ? j.revoked : []).filter((c) => typeof c === "string" && CID.test(c)).slice(-2000);
   const cards = [];
   for (const e of j.cards.slice(0, MAX)) {
-    if (!e || !CID.test(e.cid) || revoked.includes(e.cid)) continue;
+    if (!e || !CID.test(e.cid) || revoked.includes(e.cid) || cards.some((c) => c.cid === e.cid)) continue;   // jede Karte nur einmal
     const d = sanitize(e.doc);
     if (!d || cidOf(d.ki) !== e.cid) continue;
     cards.push({ cid: e.cid, doc: d });
@@ -124,7 +124,7 @@ export function createDeck(deps) {
     if (!r.status) return { ok: false, error: r.error || "netz" };
     if (r.status === 401) return { ok: false, error: "login" };
     if (r.status !== 200 || !r.body || !Array.isArray(r.body.cards)) return { ok: false, error: "server" };
-    const cards = r.body.cards.filter((c) => c && typeof c.cid === "string" && CID.test(c.cid) && ST_MINE.includes(c.st)).map((c) => ({ cid: c.cid, st: c.st }));
+    const cards = r.body.cards.filter((c) => c && typeof c.cid === "string" && CID.test(c.cid) && ST_MINE.includes(c.st)).filter((c, i, a) => a.findIndex((x) => x.cid === c.cid) === i).map((c) => ({ cid: c.cid, st: c.st }));
     const cr = r.body.credit && Number.isInteger(r.body.credit.balance) ? { balance: r.body.credit.balance, items: (Array.isArray(r.body.credit.items) ? r.body.credit.items : []).filter((x) => x && ["use", "deck"].includes(x.reason) && Number.isInteger(x.n)).map((x) => ({ reason: x.reason, n: x.n, revoked: x.revoked === true })) } : null;
     const st = r.body.mod && ["ok", "paused", "banned"].includes(r.body.mod.st) ? r.body.mod.st : "ok";
     return { ok: true, cards, credit: cr, mod: { st } };

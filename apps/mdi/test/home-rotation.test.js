@@ -9,19 +9,43 @@ import { searchIdeas } from "../src/ui/home/search.js";
 const G = JSON.parse(fs.readFileSync(new URL("./fixtures/home-golden.json", import.meta.url), "utf8"));
 const DAY = 86400000, START = Date.parse(G.start + "T00:00:00Z");
 
+// Seit 17.11.2026 weicht die Rotation bewusst vom Altcode ab: keine Karte zweimal innerhalb von 14 Tagen (R.WINDOW).
+// Erlaubt sind Abweichungen nur dort, wo der Altcode eine Wiederholung zeigte, wo er ohnehin einen Ersatz waehlte, oder
+// als Folge davon am Folgetag (Art des Vortags). Jeder andere Tag bleibt gleich dem Altcode.
+const baseOf = (n) => { const len = R.ROUND_SIZE; return R.roundOrder(Math.floor(n / len))[((n % len) + len) % len].id; };
+function explained(old, n0, i, changed, caps = R.WEB_CAPS) {
+  const rep = [...Array(R.WINDOW).keys()].some((k) => old[i - k - 1] === old[i] || old[i + k + 1] === old[i] || R.ideaOn(n0 + i - k - 1, caps).id === old[i]);
+  return rep || (old[i] !== baseOf(n0 + i) && !R.calendarIdea(n0 + i)) || changed.has(i - 1);
+}
 for (const [name, prof] of Object.entries(G.rotation)) {
-  test("Rotation " + G.days + " Tage gleich dem Altcode: " + name, () => {
-    const diff = [];
-    for (let n = 0; n < G.days; n++) {
-      const got = R.ideaForDay(new Date(START + n * DAY), prof.caps);
-      if ((got && got.id) !== prof.ids[n]) diff.push(new Date(START + n * DAY).toISOString().slice(0, 10) + ": " + (got && got.id) + " statt " + prof.ids[n]);
+  test("Rotation " + G.days + " Tage: gleich dem Altcode ausser erklaerten Abweichungen (keine Wiederholung): " + name, () => {
+    const n0 = R.dayNumber(START), changed = new Set(), bad = [];
+    for (let i = 0; i < G.days; i++) {
+      const got = R.ideaOn(n0 + i, prof.caps);
+      if ((got && got.id) === prof.ids[i]) continue;
+      changed.add(i);
+      if (!explained(prof.ids, n0, i, changed, prof.caps)) bad.push(R.dayKey(n0 + i) + ": " + (got && got.id) + " statt " + prof.ids[i]);
     }
-    assert.deepEqual(diff.slice(0, 10), [], diff.length + " Abweichungen");
+    assert.deepEqual(bad, []);
+    assert.ok(changed.size < G.days * 0.12, changed.size + " Tage geaendert");
   });
 }
-test("Rotation zweites Fenster 2031 gleich dem Altcode", () => {
-  const s = Date.parse(G.far.start + "T00:00:00Z");
-  assert.deepEqual(G.far.ids.map((_, n) => R.ideaForDay(new Date(s + n * DAY)).id), G.far.ids);
+test("Keine Karte zweimal innerhalb von 14 Tagen, nie zweimal dieselbe Art, 10 Jahre, alle Geraeteprofile (User 17.11.)", () => {
+  const n0 = R.dayNumber(START);
+  for (const caps of [R.WEB_CAPS, { crypto: true, channel: true, call: true }, { crypto: true, channel: true, call: false }, ...Object.values(G.rotation).map((p) => p.caps)]) {
+    const dup = [];
+    for (let n = n0; n < n0 + 3650; n++) {
+      const a = R.ideaOn(n, caps);
+      assert.ok(a, R.dayKey(n) + " ohne Karte");
+      for (let k = 1; k <= R.WINDOW && n - k >= n0; k++) if (R.ideaOn(n - k, caps).id === a.id) dup.push(R.dayKey(n) + " " + a.id + " wie vor " + k + " Tagen");
+      if (n > n0) assert.notEqual(R.mech(R.ideaOn(n - 1, caps)), R.mech(a), R.dayKey(n) + " gleiche Art wie Vortag");
+    }
+    assert.deepEqual(dup.slice(0, 5), [], dup.length + " Wiederholungen " + JSON.stringify(caps));
+  }
+  for (const bad of [Infinity, NaN, 1.5]) assert.equal(R.ideaOn(bad), null, "ungueltiger Tag " + bad);
+  // der gemeldete Fall: Woche bis 17.11.2026 zeigte „Stangen Kick“ dreimal
+  const wk = R.lastDays(new Date(Date.UTC(2026, 10, 17)), 6).map((x) => x.idea.id);
+  assert.equal(new Set(wk).size, 6, wk.join(","));
 });
 test("Rundenreihenfolgen gleich dem Altcode", () => {
   for (const r of G.rounds) assert.deepEqual(R.roundOrder(r.r).map((i) => i.id), r.ids, "Runde " + r.r);
@@ -37,8 +61,14 @@ test("Regeln: keine Wiederholung in der Runde, nie zweimal dieselbe Art, Kalende
 });
 test("Letzte Tage und Suche gleich dem Altcode", () => {
   const at = new Date(Date.UTC(2026, 10, 11));
-  assert.deepEqual(R.lastDays(at, 7).map((x) => ({ key: x.key, id: x.idea.id })), G.lastDays);
-  for (const s of G.search) assert.deepEqual(searchIdeas(s.q, at).map((h) => ({ id: h.idea.id, d: h.date ? h.date.toISOString().slice(0, 10) : null })), s.hits, s.q);
+  // Letzte Tage zeigen genau die Blaetter des Kalenders (seit 17.11. ohne Wiederholung, daher nicht mehr gleich dem Altcode)
+  assert.deepEqual(R.lastDays(at, 7).map((x) => ({ key: x.key, id: x.idea.id })), G.lastDays.map((x) => ({ key: x.key, id: R.ideaOn(R.dayNumber(new Date(x.key))).id })));
+  // Suche: dieselben Karten wie im Altcode; ein Datum ist immer ein Tag, an dem genau diese Karte im Kalender stand
+  for (const s of G.search) {
+    const hits = searchIdeas(s.q, at).map((h) => ({ id: h.idea.id, d: h.date ? h.date.toISOString().slice(0, 10) : null }));
+    for (const h of hits) if (h.d) assert.equal(R.ideaOn(R.dayNumber(new Date(h.d))).id, h.id, s.q + " " + h.d);
+    for (const g of s.hits) assert.ok(hits.some((h) => h.id === g.id), s.q + ": " + g.id + " fehlt");
+  }
 });
 test("Adventstuer-Nummer gleich dem Altcode", () => {
   for (const d of G.doors) assert.equal(R.doorNumber(new Date(d.d + "T12:00:00Z")), d.n, d.d);

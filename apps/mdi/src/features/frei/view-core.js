@@ -7,14 +7,14 @@ import { machine } from "../../app/machine.js";
 import { render } from "../../render/render.js";
 import { rng } from "../../contract/sdk.js";
 import { ftCore } from "./texts-core.js";
-import { ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } from "./doc.js";
+import { ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams } from "./doc.js";
 import { cardOf, cardIdOf, modelFields } from "./chart.js";
 import { manifestOf } from "../../cards/index.js";
 import { crisis } from "../../broker/ai.js";
 import { partOf } from "../../gen/fparts.js";
 
 const plainTitle = (s) => String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace(/-\|/g, "-").replace(/\|/g, " ").trim();
-const DEPS = { h, matches: (s, p) => machine.matches(s, p), render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams };
+const DEPS = { h, matches: (s, p) => machine.matches(s, p), render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams };
 let made = null;
 /** Die Ansichten des Teils "frei-ui" oder null, solange er nicht geladen ist */
 export function freiUi() {
