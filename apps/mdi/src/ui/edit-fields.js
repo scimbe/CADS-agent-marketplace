@@ -3,6 +3,7 @@
 // ueber PARAM (der Host prueft gegen das Schema, validParams). Altcode-Untergrenze: app.js colors(), steps/slide (klang),
 // stickers.js (Sticker setzen, loeschen, Rueckgaengig), wetter.js (Ort + Tag, echte Zahlen oder keine).
 import { h } from "./dom.js";
+import { swatchField } from "./swatch.js";
 
 const T = {
   de: { add: "Hinzufügen", remove: "Entfernen", on: "An", off: "Aus", up: "Nach oben", down: "Nach unten", left: "Nach links", right: "Nach rechts", bigger: "Größer", smaller: "Kleiner", turnL: "Links drehen", turnR: "Rechts drehen",
@@ -83,16 +84,9 @@ export function schemaEditor(s, v, set, id, label, lang) {
     h("input", { id, class: "input", type: "text", maxlength: String(s.maxLength || 80), value: v ?? "", on: { input: (e) => set(e.target.value) } }));
 }
 
-/** Farbpaare (alt app.js colors()): zweifarbige Kachel je Paar aus x-pairs, Auswahl wie eine Wahl. */
+/** Farbpaare (alt app.js colors()): zweifarbiges Farbfeld je Paar aus x-pairs, mit Namen (swatch.js), Auswahl mit Haekchen. */
 function pairField(p, key, v, set, label, lang) {
-  const id = "lbl-" + key, pairs = p["x-pairs"] || {};
-  return h("div", { class: "field", key }, h("div", { class: "seg", role: "radiogroup", "aria-labelledby": label ? id : "dlg-title" },
-    label ? h("p", { class: "seg-label", id }, label) : null,
-    h("div", { class: "seg-row" }, p.enum.map((e, i) => {
-      const c = pairs[e] || ["#ffffff", "#000000"];
-      return h("button", { type: "button", role: "radio", class: "seg-opt swatch", key: e, "aria-checked": v === e ? "true" : "false", "aria-label": (lang === "en" ? "Colour pair " : "Farbpaar ") + (i + 1), on: { click: () => set(e) } },
-        h("span", { class: "sw", style: { background: c[0] } }), h("span", { class: "sw", style: { background: c[1] } }));
-    }))));
+  return swatchField({ id: key, label, values: p.enum, value: v, set, lang, pairs: p["x-pairs"] || {} });
 }
 
 /** Schritte (Beat): Reihen aus x-rows, je 16 Schritte "x"/"-"; jeder Schritt ein Schalter (alt klang-ui). */

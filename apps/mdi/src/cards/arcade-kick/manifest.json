@@ -104,6 +104,20 @@
           "#7ee0ff",
           "#ff5a1f"
         ],
+        "x-palette": [
+          "#39ff88",
+          "#ff5fa2",
+          "#ffd400",
+          "#ff3b1d",
+          "#ff6a1f",
+          "#ff4fa3",
+          "#7a1fff",
+          "#2b4bff",
+          "#7ee0ff",
+          "#c8ff00",
+          "#ffffff"
+        ],
+        "x-differs": "colB",
         "default": "#39ff88",
         "x-field": "color",
         "x-label": {
@@ -145,6 +159,20 @@
           "#7ee0ff",
           "#ff5a1f"
         ],
+        "x-palette": [
+          "#39ff88",
+          "#ff5fa2",
+          "#ffd400",
+          "#ff3b1d",
+          "#ff6a1f",
+          "#ff4fa3",
+          "#7a1fff",
+          "#2b4bff",
+          "#7ee0ff",
+          "#c8ff00",
+          "#ffffff"
+        ],
+        "x-differs": "colA",
         "default": "#ff5fa2",
         "x-field": "color",
         "x-label": {
@@ -244,6 +272,20 @@
           "figure",
           "bg"
         ],
+        "x-names": {
+          "off": {
+            "de": "Kein Foto",
+            "en": "No photo"
+          },
+          "figure": {
+            "de": "🙂 Als Figur",
+            "en": "🙂 As figure"
+          },
+          "bg": {
+            "de": "🖼️ Als Hintergrund",
+            "en": "🖼️ As background"
+          }
+        },
         "default": "off",
         "x-field": "choice",
         "x-label": {
@@ -257,6 +299,10 @@
         "maximum": 9,
         "default": 3,
         "x-field": "number",
+        "x-unit": {
+          "de": "Punkte",
+          "en": "points"
+        },
         "x-model": true,
         "x-label": {
           "de": "Punkte zum Sieg",
@@ -275,7 +321,11 @@
       "label": {
         "de": "Farben",
         "en": "Colours"
-      }
+      },
+      "at": [
+        0.47,
+        0.62
+      ]
     },
     {
       "id": "figur",
@@ -287,7 +337,11 @@
       "label": {
         "de": "Figur und Foto",
         "en": "Figure and photo"
-      }
+      },
+      "at": [
+        0.47,
+        0.58
+      ]
     },
     {
       "id": "texte",
@@ -298,7 +352,11 @@
       "label": {
         "de": "Texte",
         "en": "Texts"
-      }
+      },
+      "at": [
+        0.3,
+        0.03
+      ]
     },
     {
       "id": "regeln",
@@ -308,7 +366,11 @@
       "label": {
         "de": "Regeln",
         "en": "Rules"
-      }
+      },
+      "at": [
+        0.7,
+        0.03
+      ]
     }
   ],
   "rt": {

@@ -4,6 +4,7 @@ import { langOf } from "./app/texts.js";
 import { view, leaf } from "./ui/view.js";
 import { patch } from "./ui/dom.js";
 import { grow, shrink } from "./ui/motion.js";
+import { placeBubbles, createBubbleDrag } from "./ui/bubbles.js";
 import { createStorage } from "./broker/storage.js";
 import { share, copy } from "./broker/share.js";
 import { loadLive } from "./broker/live-host.js";
@@ -74,28 +75,6 @@ const rt = createRuntime({
 
 function bubbleRect(part) { const b = root.querySelector('.bubble[data-for="' + part + '"]'); return b ? b.getBoundingClientRect() : null; }
 
-// Blasen an die Teile der Karte heften (Layout, kein Zustand): Mitte oben ueber dem Teil, innerhalb der Buehne.
-function placeBubbles() {
-  const st = root.querySelector("#stage"), layer = root.querySelector(".bubbles");
-  if (!st || !layer) return;
-  const sr = st.getBoundingClientRect(), placed = [];
-  for (const b of layer.querySelectorAll(".bubble")) {
-    const els = st.querySelectorAll('[data-part="' + b.dataset.for + '"]');
-    if (!els.length) { b.style.setProperty("display", "none"); continue; }
-    let l = Infinity, t = Infinity, r = -Infinity, btm = -Infinity;
-    for (const e of els) { const q = e.getBoundingClientRect(); l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); btm = Math.max(btm, q.bottom); }
-    const big = (r - l) * (btm - t) > 0.6 * sr.width * sr.height;
-    const bw = b.offsetWidth, bh = b.offsetHeight;
-    // links ueber dem Teil, damit die Blase den Inhalt nicht verdeckt; grosse Teile (ganze Karte): unten links
-    let x = big ? sr.left + 12 : l - 6, y = big ? sr.bottom - bh - 12 : t - bh - 6;
-    x = Math.max(sr.left + 4, Math.min(sr.right - bw - 4, x)); y = Math.max(sr.top + 4, Math.min(sr.bottom - bh - 4, y));
-    for (const p of placed) if (Math.abs(p.x - x) < bw && Math.abs(p.y - y) < bh) y = p.y + bh + 6;
-    placed.push({ x, y });
-    b.style.setProperty("left", (x + window.scrollX) + "px"); b.style.setProperty("top", (y + window.scrollY) + "px");
-    b.style.removeProperty("display");
-  }
-}
-
 function trapFocus(e) {
   const d = root.querySelector("#dialog");
   if (!d || e.key !== "Tab") return;
@@ -111,7 +90,7 @@ wideMq.addEventListener("change", () => draw(rt.state, null));
 function draw(state, info) {
   const beforeLeaf = info && info.before ? leaf(info.before) : null, nowLeaf = leaf(state);
   patch(root, view(state, (ev) => rt.dispatch(ev), { ...viewEnv, reduced: reducedMq.matches, wide: wideMq.matches }));
-  placeBubbles();
+  placeBubbles(root);
   const d = root.querySelector("#dialog");
   if (d && beforeLeaf !== "card.customize.dialog") {
     opener = root.querySelector('.bubble[data-for="' + state.ctx.part + '"]');
@@ -159,7 +138,13 @@ addEventListener("keydown", (e) => {
   if (e.code === "KeyP" && rt.rt.active && !/^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) { rt.dispatch({ type: "PAUSE" }); e.preventDefault(); return; }
   trapFocus(e);
 });
-addEventListener("resize", placeBubbles);
+addEventListener("resize", () => placeBubbles(root));
+// Blasen ziehen (Lage je Kartenart, BLASE_LAGE) und Teil der Karte direkt antippen (gleiche Einstellung wie die Blase)
+createBubbleDrag(root, (ev) => rt.dispatch(ev));
+root.addEventListener("click", (e) => {
+  const el = e.target.closest && e.target.closest("#stage [data-part]");
+  if (el && rt.matches("inhalt.card.customize.bubbles")) rt.dispatch({ type: "BUBBLE", part: el.dataset.part });
+});
 addEventListener("hashchange", () => { if (/^#v2\./.test(location.hash)) rt.link(location.hash); });
 
 rtApi = rt.rt;

@@ -212,7 +212,11 @@
       "label": {
         "de": "Text",
         "en": "Text"
-      }
+      },
+      "at": [
+        0.5,
+        0.2
+      ]
     },
     {
       "id": "farbe",
@@ -222,7 +226,11 @@
       "label": {
         "de": "Farbe",
         "en": "Colour"
-      }
+      },
+      "at": [
+        0.08,
+        0.5
+      ]
     }
   ],
   "variants": [

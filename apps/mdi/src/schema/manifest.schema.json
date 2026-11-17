@@ -40,7 +40,7 @@
     "inputs": { "type": "object", "description": "JSON-Schema der Eingaben dieser Karte (ADR 0001 f)" },
     "inputDay": { "type": "boolean" },
     "link": { "type": "object", "additionalProperties": false, "properties": { "snap": { "type": "boolean" } } },
-    "parts": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "params", "label"], "properties": { "id": { "type": "string", "pattern": "^[a-z]+$" }, "params": { "type": "array", "items": { "type": "string" } }, "label": { "$ref": "#/$defs/i18n" } } } },
+    "parts": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "params", "label"], "properties": { "id": { "type": "string", "pattern": "^[a-z]+$" }, "params": { "type": "array", "items": { "type": "string" } }, "label": { "$ref": "#/$defs/i18n" }, "at": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0, "maximum": 1 } } } } },
     "variants": {
       "type": "array", "maxItems": 32,
       "items": {
