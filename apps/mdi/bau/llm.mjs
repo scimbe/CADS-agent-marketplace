@@ -50,6 +50,23 @@ export function createLedger(o) {
 }
 
 /**
+ * Schreibtest fuer den Ordner des Kostenbuchs, genau wie die Buchung schreibt (tmp + rename), beim Start des Workers.
+ * Am 18.11. gehoerte das Volume root, der Worker lief als 1000: jeder Bau holte einen Auftrag und scheiterte erst beim ersten
+ * Modellaufruf (EACCES auf kosten-*.json.tmp), ohne Ergebnis an den Wrapper. So faellt es beim Start auf.
+ * @throws {Error & {code:string}} "Kostenbuch nicht beschreibbar: <dir> (<code>)"
+ */
+export function schreibtest(dir) {
+  const f = path.join(dir, ".schreibtest-" + process.pid);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(f + ".tmp", "ok"); fs.renameSync(f + ".tmp", f); fs.unlinkSync(f);
+  } catch (e) {
+    try { fs.unlinkSync(f + ".tmp"); } catch { /* gibt es nicht */ }
+    throw Object.assign(new Error("Kostenbuch nicht beschreibbar: " + dir + " (" + (e.code || e.message) + ")"), { code: e.code || "SCHREIBTEST" });
+  }
+}
+
+/**
  * Tagesgrenze ueber alle Auftraege: eine Buchungsdatei je UTC-Tag in dir (kosten-JJJJ-MM-TT.json).
  * @param {{cap:number, dir:string, now?:() => number}} o
  * @returns {() => ReturnType<typeof createLedger>} die Buchung des heutigen Tages
@@ -57,7 +74,7 @@ export function createLedger(o) {
 export function createTagesbuch(o) {
   const now = o.now || Date.now;
   let tag = "", buch = null;
-  fs.mkdirSync(o.dir, { recursive: true });
+  schreibtest(o.dir);
   return () => {
     const t = new Date(now()).toISOString().slice(0, 10);
     if (t !== tag) { tag = t; buch = createLedger({ cap: o.cap, file: path.join(o.dir, "kosten-" + t + ".json"), name: "Tagesgrenze " + t }); }
