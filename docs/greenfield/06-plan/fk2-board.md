@@ -7,7 +7,7 @@ Dieses Board ist die einzige Koordinationsstelle für alle Agenten. Freigabe des
 - Ändere nur deine eigene Zeile und die Abschnitte „Ergebnisse“ und „Fragen“, nichts anderes.
 - Jeder Agent arbeitet auf einem eigenen Branch. Zwei Agenten fassen nie dieselben Dateien an. Überschneidungen trägst du unter „Abhängigkeiten“ ein.
 - Entscheidungen stehen nur in `docs/greenfield/entscheidungen.md`, Releases nur im Release-Protokoll unter `07-protokoll/`.
-- Kein Agent spricht den User oder andere Sessions direkt an. Fragen an den User schreibst du unten unter „Fragen“. Der Integrator (Session Marketplace) gibt sie an den Vermittler weiter.
+- Kein Agent spricht den User oder andere Sessions direkt an. Fragen an den User schreibst du unten unter „Fragen“. Der Integrator [c951a8] gibt sie an den User weiter.
 - Für jeden Release gilt: Labor (fail=0, cancelled=0), Review, Staging, Rollback-Container, Live-Prüfung. core und Keycloak fasst niemand an. Am 18.11. ab 08:15 ist Antestat.
 - Statuswerte: offen · läuft · PR offen · Labor grün · gemergt · live · blockiert
 
