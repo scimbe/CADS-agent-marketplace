@@ -2,6 +2,15 @@
 
 Dieses Board ist die einzige Koordinationsstelle für alle Agenten. Freigabe des Users vom 17.11. abends: „dann baue es und nutze gerne auch einen swarm wenn dies arbeiten beschleunigen kann, nutze aber nur zentrale dateien als koordination und dieses agenten als mediator“.
 
+## Integrator-Wechsel (18.11.2026, ca. 07:15) – gilt vor allen anderen Regeln
+- **Integrator ist ab jetzt die Session „handover-session-rename-marketing“ [c951a8].** Sie ist zugleich Vermittler zum User. Freigabe des Users am 18.11.: Übernahme „ohne Bruch“; dazu der Auftrag „wenn marketplace wieder loslegen will … das du es unterbindest“.
+- **Die Session „Marketplace“ [a27c4e] ist nicht mehr Integrator.** Sie ist seit dem Neustart der Claude-App um 03:42 nicht mehr erreichbar. Wenn sie wieder läuft, gilt:
+  - keine Merges, Pushes, Deploys oder Änderungen auf Hosts (ssh-united, core, labor-setup.de),
+  - keine Commits auf dieses Board,
+  - keine Aufträge an Agenten.
+- Sie darf lesen und sich beim Integrator [c951a8] melden. Arbeit übernimmt sie nur, wenn der Integrator sie ihr ausdrücklich zuweist.
+- Agenten, die noch für „Marketplace“ laufen, stoppen nach ihrem aktuellen Schritt. Sie tragen ihren Stand hier ein und warten auf den Integrator.
+
 ## Regeln
 - Lies das Board vor Arbeitsbeginn und trage deinen Stand hier ein: Status, Commit, Zahlen.
 - Ändere nur deine eigene Zeile und die Abschnitte „Ergebnisse“ und „Fragen“, nichts anderes.
