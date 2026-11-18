@@ -45,6 +45,7 @@ Dieses Board ist die einzige Koordinationsstelle für alle Agenten. Freigabe des
 | B5 | Kacheln: Bild muss zum Text passen („Ein Bär“ zeigte einen Pinguin, „Eichhörnchen“ einen Hasen). Prüfung auf dem Server, neutrales Bild als Rückfall, Test | offen | – | – | offen | – |
 | B6 | „Meine Aufträge“ im Profil bzw. in „Mein Regal“: Status je Auftrag (Klärung, Warteschlange, Bau mit Schritten, fertig erfüllt/fehlt, Nachbesserung n×, gemeldet, gescheitert mit Grund), Guthaben-Status, Benachrichtigung; Hinweis „1 Auftrag in Arbeit“ auf der Startseite; nur eigene Aufträge; vorerst nur für den Tester | offen | – | – | offen | A3 |
 | B7 | Login-Sackgasse: Zurück führt zu `/gate/callback` mit „missing code or state“. (a) App: Zurück darf nicht in den Login-Fluss führen. (b) Gate in CADS-Tunnel: Callback ohne code oder state leitet freundlich weiter. **(b) ist ein core-Deploy: nur mit Freigabe des Users, Vorwarnung, nicht während Antestat** | offen | – | – | offen | – |
+| U1 | Usability-Recherche umsetzen (Bericht `08-forschung/usability-automatisiert.md`): Maßnahmen 1–8 vorgeschlagen, Freigabe des Users zur Reihenfolge offen | Integrator | – | – | offen | – |
 
 ## Meilensteine
 | Meilenstein | Ziel | Stand |
