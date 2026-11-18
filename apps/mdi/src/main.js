@@ -20,6 +20,8 @@ import { createParts } from "./broker/parts.js";
 import { createAi } from "./broker/ai.js";        // Strang K: freie Karte und KI-Arten
 import { createDeck } from "./broker/deck.js";
 import { createKlaerung } from "./broker/klaerung.js";
+import { createSpielModul } from "./broker/spiel-modul.js";
+import { createPushAbo } from "./broker/push-abo.js";
 import { createBild } from "./broker/bild.js";
 import { sanitizeDoc } from "./features/frei/doc.js";
 import { pinFor } from "./broker/deck-pin.js";
@@ -58,7 +60,7 @@ const rt = createRuntime({
   loadFeat: (name) => parts.feat(name),
   lang, entropy, storage: createStorage(),
   // App-Huelle mit Konto-Bruecke: Anmelden nativ (OIDC + PKCE), Aufrufe mit Bearer durch die Huelle; sonst Web (Cookie)
-  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }), klaerung: createKlaerung({ api }),
+  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }), klaerung: createKlaerung({ api }), spielModul: createSpielModul({ win: window, subtle: window.crypto ? window.crypto.subtle : null }), pushAbo: createPushAbo({ win: window, api }),
   returnPath,
   setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },

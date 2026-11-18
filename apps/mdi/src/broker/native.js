@@ -15,7 +15,7 @@ const LONG = { login: 600000, logout: 60000 };   // Anmelden wartet auf die Pers
 /**
  * @param {object} win   das globale Objekt der Seite (nur main.js reicht es herein)
  * @param {{timeout?:number}} [o]
- * @returns {{call:(req:object)=>Promise<object>}|null}
+ * @returns {{call:(req:object, o?:{ms?:number})=>Promise<object>}|null}  o.ms: eigene Frist dieses Aufrufs
  */
 export function nativeAccount(win, o = {}) {
   if (!win || typeof win !== "object") return null;
@@ -28,7 +28,7 @@ export function nativeAccount(win, o = {}) {
   const shape = (r) => (r && typeof r === "object" && !Array.isArray(r) ? r : { ok: false, error: "refused" });
 
   if (host && typeof host.account === "function") {
-    return { call: (req) => withTimeout(Promise.resolve().then(() => host.account({ v: 1, ...req })).then(shape), LONG[req.op] || timeout) };
+    return { call: (req, co) => withTimeout(Promise.resolve().then(() => host.account({ v: 1, ...req })).then(shape), (co && co.ms) || LONG[req.op] || timeout) };
   }
   const ch = win.MdiAccount;
   if (ch && typeof ch.postMessage === "function") {
@@ -42,11 +42,11 @@ export function nativeAccount(win, o = {}) {
     };
     if (typeof ch.addEventListener === "function") ch.addEventListener("message", onMsg); else ch.onmessage = onMsg;
     return {
-      call: (req) => {
+      call: (req, co) => {
         const id = ++seq;
         const p = new Promise((resolve) => { pending.set(id, resolve); });
         try { ch.postMessage(JSON.stringify({ v: 1, ...req, id })); } catch (x) { pending.delete(id); return Promise.resolve({ ok: false, error: "refused" }); }
-        return withTimeout(p.then(shape), LONG[req.op] || timeout).then((r) => { pending.delete(id); return r; });
+        return withTimeout(p.then(shape), (co && co.ms) || LONG[req.op] || timeout).then((r) => { pending.delete(id); return r; });
       }
     };
   }

@@ -279,7 +279,19 @@ test("Flug: Tipp-Taste „TIPPEN = FLATTERN“ (>= 96 px) haelt den Vogel oben; 
   await start(p, null, null);
   const key = p.locator(".rt-key");
   assert.equal(await key.textContent(), "TIPPEN = FLATTERN"); assert.ok((await key.boundingBox()).height >= 96);
-  while ((await screen(p)) === "card-rt-run") { await key.dispatchEvent("pointerdown"); await key.dispatchEvent("pointerup"); await p.waitForTimeout(260); }
+  // Tippen, solange der Lauf geht. Pruefen und Tippen geschehen in EINEM Schritt im Browser: am Rundenende zeichnet die Buehne
+  // das letzte Bild ohne Taste (rt/session.js finish -> onFrame), bevor der Bildschirm auf card-rt-over wechselt. Ein
+  // locator.dispatchEvent nach einer eigenen Bildschirm-Abfrage wartete in diesem Fenster 15 s auf eine Taste, die es nicht mehr
+  // gibt (Labor 1d0c179f, Test 20). Ohne Taste wird nicht getippt, die Schleife fragt den Bildschirm erneut.
+  const tippe = () => p.evaluate(() => {
+    const k = document.querySelector(".rt-key");
+    if (!k) return false;
+    for (const type of ["pointerdown", "pointerup"]) k.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: 1, isPrimary: true }));
+    return true;
+  });
+  let getippt = 0;
+  while ((await screen(p)) === "card-rt-run") { if (await tippe()) getippt++; await p.waitForTimeout(260); }
+  assert.ok(getippt > 0, "die Tipp-Taste wurde gedrueckt");
   await waitScreen(p, "card-rt-over", 120000);
   const n = await flightTicks(p), url = await p.locator("#linkfield").inputValue();
   const wire = JSON.parse(Buffer.from(url.slice(url.indexOf("#")).split(".")[2], "base64url").toString());

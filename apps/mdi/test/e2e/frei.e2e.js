@@ -13,7 +13,9 @@ import { encode } from "../../src/app/link.js";
 
 let b;
 test.before(async () => { b = await browser(); });
-test.after(async () => { await b.close(); });
+// Kontexte bleiben offen; laeuft beim Schliessen noch ein Route-Handler (fakewrapper/fakefrei: await req.allHeaders()),
+// wuerde er nach Testende mit "Target ... has been closed" ablehnen. unrouteAll wartet die Handler ab bzw. verwirft ihre Fehler.
+test.after(async () => { for (const c of b.contexts()) await c.unrouteAll({ behavior: "ignoreErrors" }); await b.close(); });
 
 async function openApp(fw, ff, { view = "phone390", lang = "de", scheme = "light", path = "/duell", origin = APP } = {}) {
   const ctx = await b.newContext({ ...VIEWS[view], locale: lang === "de" ? "de-DE" : "en-GB", colorScheme: scheme });

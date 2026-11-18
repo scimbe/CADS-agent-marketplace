@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { build, PLAY_PARENTS } from "../scripts/build.js";
+import { build, PLAY_PARENTS, SPIEL_ORIGIN } from "../scripts/build.js";
 import { generate } from "../scripts/gen.js";
 import { findLegacyRefs } from "../scripts/legacy-check.js";
 import os from "node:os";
@@ -60,11 +60,16 @@ const DANGEROUS = /\binnerHTML\b|\bouterHTML\b|insertAdjacentHTML|document\.writ
 test("Realm-Trennung (Review M4): App nur zum eigenen Server und ohne Fremdskript; Live nur im abgeschotteten Rahmen mit eigener CSP", () => {
   const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
   const csp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)[1];
-  // P1 Konto: genau die eigene Herkunft (/api/duell, /auth/me), sonst nichts – kein Host, kein Schema, kein Wildcard
-  assert.equal(/connect-src ([^;]+)/.exec(csp)[1].trim(), "'self'");
+  // P1 Konto: die eigene Herkunft (/api/duell, /auth/me); dazu genau der Spiel-Ursprung der Freien Karte 2 ("Probe spielen" holt
+  // dort das gepruefte Modul, ohne Cookies, Hash gegen den Server-Stand) – kein weiterer Host, kein Schema, kein Wildcard
+  assert.equal(/connect-src ([^;]+)/.exec(csp)[1].trim(), "'self' " + SPIEL_ORIGIN);
   for (const d of ["img-src data:", "font-src data:", "default-src 'none'"]) assert.ok(csp.includes(d), d);
-  assert.ok(!/worker-src|manifest-src|media-src/.test(csp), "keine weiteren Quellen: " + csp);
-  assert.match(csp, /frame-src 'self' https:\/\/webconference\.bunsenbrenner\.org\/play-frame\.html(;|$)/, "nur genau der Live-Rahmen der Webkonferenz");
+  // Push "Karte fertig": genau der eigene Service Worker, sonst keine weiteren Quellen
+  assert.equal(/worker-src ([^;]+)/.exec(csp)[1].trim(), "'self'");
+  assert.ok(!/manifest-src|media-src/.test(csp), "keine weiteren Quellen: " + csp);
+  const sw = fs.readFileSync(path.join(DIST, "mdi-push-sw.js"), "utf8");
+  assert.ok(!/addEventListener\("fetch"|caches\.|importScripts/.test(sw), "Service Worker nur fuer Push: kein fetch-Handler, kein Cache");
+  assert.match(csp, /frame-src 'self' https:\/\/webconference\.bunsenbrenner\.org\/play-frame\.html https:\/\/spiel-f29c55da\.bunsenbrenner\.org\/frame\.html(;|$)/, "nur genau der Live-Rahmen der Webkonferenz und der Spielrahmen");
   assert.ok(!/https?:|'self'/.test(/script-src ([^;]+)/.exec(csp)[1]), "script-src nur Hash: " + csp);
   const frames = fs.readdirSync(path.join(DIST, "parts")).filter((f) => /^live-frame\./.test(f));
   assert.equal(frames.length, 1);
@@ -107,7 +112,11 @@ test("Server-Aufrufe nur ueber EIN API-Modul (src/broker/api.js); kein fetch son
   const hits = files(SRC, /\.js$/).filter((f) => /\bfetch\s*\(/.test(fs.readFileSync(f, "utf8"))).map(rel).sort();
   // live.js spricht im abgeschotteten Rahmen mit /api/play der Webkonferenz (nicht mit diesem Server);
   // parts.js laedt nur die eigenen statischen Teile (Dateinamen aus dem Build, ohne Cookies), keine Server-Aufrufe
-  assert.deepEqual(hits, [path.join("src", "broker", "api.js"), path.join("src", "broker", "live.js"), path.join("src", "broker", "parts.js")].sort());
+  // spiel-modul.js laedt fuer "Probe spielen" nur ein Modul vom Spiel-Ursprung (ohne Cookies, Hash geprueft), keine Server-Aufrufe
+  assert.deepEqual(hits, [path.join("src", "broker", "api.js"), path.join("src", "broker", "live.js"), path.join("src", "broker", "parts.js"), path.join("src", "broker", "spiel-modul.js")].sort());
+  const sm = fs.readFileSync(path.join(SRC, "broker/spiel-modul.js"), "utf8");
+  assert.match(sm, /o\.win\.fetch\(u\.href, \{ mode: "cors", credentials: "omit"/);
+  assert.match(sm, /if \(u\.origin !== origin \|\| u\.pathname !== "\/m\/" \+ sha256 \+ "\.js"\) return \{ how: "ursprung" \}/);
   const parts = fs.readFileSync(path.join(SRC, "broker/parts.js"), "utf8");
   assert.match(parts, /win\.fetch\(file, \{ cache: "no-cache", credentials: "omit" \}\)/, "Teile ohne Cookies, nur Dateinamen aus dem Build");
   const api = fs.readFileSync(path.join(SRC, "broker/api.js"), "utf8");

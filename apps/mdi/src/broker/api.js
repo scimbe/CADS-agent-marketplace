@@ -101,18 +101,18 @@ export function createApi(deps) {
     // alles andere mit "?" wird abgelehnt statt still gekuerzt.
     const to = appRoute(method, path, body, opt);
     if (!to) return fail("pfad");
-    const r = await native.call({ op: "api", method: to.method, path: to.path, ...(to.body !== undefined ? { body: JSON.stringify(to.body) } : {}) });
+    const r = await native.call({ op: "api", method: to.method, path: to.path, ...(to.body !== undefined ? { body: JSON.stringify(to.body) } : {}) }, opt && opt.ms ? { ms: opt.ms } : undefined);
     if (!r || r.ok !== true || !Number.isSafeInteger(r.status)) return fail(r && r.error === "netz" ? "netz" : "server");
     let j = null; try { j = JSON.parse(r.body); } catch (e) { j = null; }
     return { status: r.status, body: j };
   }
 
   /** -> {status, body} | Fehler "nicht-hier"/"netz" */
-  async function call(method, path, body, opt) {   // opt: { headers?, zeit? }
+  async function call(method, path, body, opt) {   // opt: { headers?, zeit?, ms? }
     if (native) return viaApp(method, path, body, opt);
     if (!here) return fail("nicht-hier");
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
-    const t = ctl ? setTimeout(() => ctl.abort(), timeout) : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), (opt && opt.ms) || timeout) : null;
     try {
       const r = await doFetch(path, { method, credentials: "same-origin", referrerPolicy: "no-referrer", cache: "no-store", redirect: "error",
         headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...((opt && opt.headers) || {}) }, body: body !== undefined ? JSON.stringify(body) : undefined, signal: ctl ? ctl.signal : undefined });
@@ -298,11 +298,15 @@ export function createApi(deps) {
 
   // ---- Strang K (freie Karte, KI, Deck, KI-Bild): additiv. Die Dienste in src/broker/ai.js, deck.js, bild.js bilden die
   // Antworten selbst ab; hier steht nur der Transport, damit fetch weiter genau an dieser Stelle steht (build.test). ----
-  const RAW_PATHS = /^\/api\/duell\/(klaerung\/(an|fragen|antwort|liste|auftrag|optin|status|nachbessern|melden|behalten)|ai(\/(status|accept|discard))?|queue|report|deck(\/(key|use|vote|me))?|deck\/status\?c=[A-Za-z0-9_-]{22}(&d=[A-Za-z0-9_-]{43})?|bild(\/(status|job|cancel|keep|avatar))?)$/;
+  // Server (wrapper lib/duell-klaerung.mjs): Pruefung (checkMs 8 s) + bis zu zwei Generierungen (genMs je 35 s) = 78 s
+  const KLAERUNG_GEN = /^\/api\/duell\/klaerung\/(fragen|antwort|liste)$/;
+  const KLAERUNG_GEN_MS = 90000;
+  const RAW_PATHS = /^\/api\/duell\/(klaerung\/(an|fragen|antwort|liste|auftrag|optin|status|nachbessern|melden|behalten)|ai(\/(status|accept|discard))?|queue|report|deck(\/(key|use|vote|me))?|deck\/status\?c=[A-Za-z0-9_-]{22}(&d=[A-Za-z0-9_-]{43})?|bild(\/(status|job|cancel|keep|avatar))?|push\/(key|subscribe))$/;
   /** Roher Aufruf eines erlaubten Pfads (nur diese Liste, nur gleiche Herkunft) -> {status, body} | Fehler nicht-hier/netz/pfad */
   async function raw(method, path, body) {
     if ((method !== "GET" && method !== "POST") || !RAW_PATHS.test(path)) return fail("pfad");
-    return call(method, path, body, { zeit: true });   // "zeit" (Zeitueberschreitung) getrennt von "netz"
+    // "zeit" (Zeitueberschreitung) getrennt von "netz"; was im Klaerungsdialog generiert, hat die Frist des Servers plus Reserve
+    return call(method, path, body, { zeit: true, ...(KLAERUNG_GEN.test(path) ? { ms: KLAERUNG_GEN_MS } : {}) });
   }
   /** Ein KI-Bild als data:-URL (img-src bleibt data:, CSP unveraendert). Nur Web; die App-Bruecke reicht keine Binaerdaten. */
   async function image(path) {

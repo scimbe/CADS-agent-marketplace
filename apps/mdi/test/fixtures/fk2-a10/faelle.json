@@ -1,0 +1,661 @@
+{
+ "herkunft": "A10-Messlauf 2026-11-17 (mdi-greenfield docs/greenfield/08-forschung/fk2-a10-messung/roh/karten.jsonl): gespeicherter Code (*.js), Plan und Ergebnis der fuenf Karten mit falschem fehlt; ohne Aenderung kopiert",
+ "faelle": [
+  {
+   "karte": "A-P01-L3",
+   "lang": "de",
+   "punkte": [
+    {
+     "id": "p1",
+     "text": "Du steuerst ein Segelboot unten am Rand des Wassers – nach links und rechts, mit Wischen oder Pfeiltasten."
+    },
+    {
+     "id": "p2",
+     "text": "Vom Boot aus fliegen bunte Wasserbomben nach oben, die beim Aufprall bunt platzen."
+    },
+    {
+     "id": "p3",
+     "text": "Holzboote fahren von rechts nach links in Reihen über den Bildschirm und werden mit jeder neuen Welle schneller."
+    },
+    {
+     "id": "p4",
+     "text": "Trifft eine Wasserbombe ein Holzboot, kippt es um und treibt davon, und es gibt einen Punkt."
+    },
+    {
+     "id": "p5",
+     "text": "Berührt ein Holzboot dein Segelboot oder erreicht den unteren Rand, ist die Runde vorbei und der Punktestand wird angezeigt."
+    }
+   ],
+   "plan": [
+    {
+     "id": "p1",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p1",
+      "schritte": [
+       {
+        "halte": [
+         "left"
+        ],
+        "frames": 60
+       }
+      ],
+      "erwartung": {
+       "art": "figur_bewegt",
+       "emoji": "⛵",
+       "richtung": "links"
+      }
+     }
+    },
+    {
+     "id": "p2",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p2",
+      "schritte": [
+       {
+        "halte": [
+         "fire"
+        ],
+        "frames": 10
+       }
+      ],
+      "erwartung": {
+       "art": "figur_sichtbar",
+       "emoji": "💧"
+      }
+     }
+    },
+    {
+     "id": "p3",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p4",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p5",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p5",
+      "schritte": [
+       {
+        "halte": [],
+        "frames": 1000
+       }
+      ],
+      "erwartung": {
+       "art": "spiel_endet"
+      }
+     }
+    }
+   ],
+   "a10": [
+    {
+     "id": "p1",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p2",
+     "erfuellt": false,
+     "notiz": "Das macht das Spiel noch nicht so, wie es hier steht.",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p3",
+     "erfuellt": false,
+     "notiz": "Die Holzboote fahren hin und her statt nur von rechts nach links, und in der naechsten Welle sind sie nicht deutlich schneller.",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p4",
+     "erfuellt": false,
+     "notiz": "Das macht das Spiel noch nicht so, wie es hier steht.",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p5",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    }
+   ],
+   "betroffen": [
+    "p2",
+    "p4"
+   ]
+  },
+  {
+   "karte": "A-P03-L1",
+   "lang": "de",
+   "punkte": [
+    {
+     "id": "p1",
+     "text": "Die Schlange bewegt sich von selbst über das Spielfeld; du lenkst sie mit den Pfeiltasten oder mit Wischen."
+    },
+    {
+     "id": "p2",
+     "text": "Ein roter Apfel erscheint an zufälliger Stelle; frisst die Schlange ihn, wird sie um ein Stück länger."
+    },
+    {
+     "id": "p3",
+     "text": "Die Schlange startet langsam und wird nach jedem Apfel etwas schneller, so wie du es dir überraschend ausgesucht hast."
+    },
+    {
+     "id": "p4",
+     "text": "Oben auf dem Bildschirm steht die Anzahl der gefressenen Äpfel als Punktestand."
+    },
+    {
+     "id": "p5",
+     "text": "Berührt die Schlange die Wand oder sich selbst, ist das Spiel vorbei und der Punktestand wird angezeigt."
+    }
+   ],
+   "plan": [
+    {
+     "id": "p1",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p1",
+      "schritte": [
+       {
+        "halte": [
+         "up"
+        ],
+        "frames": 10
+       },
+       {
+        "halte": [
+         "left"
+        ],
+        "frames": 60
+       }
+      ],
+      "erwartung": {
+       "art": "figur_bewegt",
+       "emoji": "🐍",
+       "richtung": "links"
+      }
+     }
+    },
+    {
+     "id": "p2",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p3",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p4",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p5",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p5",
+      "schritte": [
+       {
+        "halte": [
+         "up"
+        ],
+        "frames": 400
+       }
+      ],
+      "erwartung": {
+       "art": "spiel_endet"
+      }
+     }
+    }
+   ],
+   "a10": [
+    {
+     "id": "p1",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p2",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p3",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p4",
+     "erfuellt": false,
+     "notiz": "Oben steht nicht nur die Zahl der gefressenen Äpfel, sondern zusaetzlich Punkte fuers Ueberleben und fuer jede Stufe.",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p5",
+     "erfuellt": false,
+     "notiz": "Das macht das Spiel noch nicht so, wie es hier steht.",
+     "geprueft": "gespielt"
+    }
+   ],
+   "betroffen": [
+    "p5"
+   ]
+  },
+  {
+   "karte": "A-P04-L3",
+   "lang": "de",
+   "punkte": [
+    {
+     "id": "p1",
+     "text": "Du steuerst einen roten Sportwagen auf einer geraden Autobahn mit zwei Fahrspuren."
+    },
+    {
+     "id": "p2",
+     "text": "Andere Autos fahren langsamer vor dir her und kommen von vorne auf deiner Spur."
+    },
+    {
+     "id": "p3",
+     "text": "Jedes Auto, das du überholst, bringt dir einen Punkt und zählt im Punktestand oben links."
+    },
+    {
+     "id": "p4",
+     "text": "Berührst du ein anderes Auto, wird dein Wagen kurz bunt blinkend zurückgesetzt und das Tempo sinkt."
+    },
+    {
+     "id": "p5",
+     "text": "Das Spiel wird mit der Zeit schneller, und nach jedem Durchgang steht dein bester Punktestand auf dem Bildschirm."
+    }
+   ],
+   "plan": [
+    {
+     "id": "p1",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p1",
+      "schritte": [
+       {
+        "halte": [
+         "left"
+        ],
+        "frames": 30
+       }
+      ],
+      "erwartung": {
+       "art": "figur_bewegt",
+       "emoji": "🏎️",
+       "richtung": "links"
+      }
+     }
+    },
+    {
+     "id": "p2",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p2",
+      "schritte": [
+       {
+        "halte": [],
+        "frames": 300
+       }
+      ],
+      "erwartung": {
+       "art": "mehr_figuren",
+       "emoji": "🚙"
+      }
+     }
+    },
+    {
+     "id": "p3",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p3",
+      "schritte": [
+       {
+        "halte": [],
+        "frames": 600
+       }
+      ],
+      "erwartung": {
+       "art": "punkte_steigen"
+      }
+     }
+    },
+    {
+     "id": "p4",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p4",
+      "schritte": [
+       {
+        "halte": [],
+        "frames": 600
+       }
+      ],
+      "erwartung": {
+       "art": "leben_sinken"
+      }
+     }
+    },
+    {
+     "id": "p5",
+     "machbar": false,
+     "kunde": "Das Tempo steigt mit der Zeit, aber der beste Punktestand kann nach einem Neustart nicht stehen bleiben, weil jede neue Runde von vorne beginnt.",
+     "szenario": null
+    }
+   ],
+   "a10": [
+    {
+     "id": "p1",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p2",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p3",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p4",
+     "erfuellt": false,
+     "notiz": "Das macht das Spiel noch nicht so, wie es hier steht.",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p5",
+     "erfuellt": false,
+     "notiz": "Das Tempo steigt mit der Zeit, aber der beste Punktestand kann nach einem Neustart nicht stehen bleiben, weil jede neue Runde von vorne beginnt.",
+     "geprueft": "gelesen"
+    }
+   ],
+   "betroffen": [
+    "p4"
+   ]
+  },
+  {
+   "karte": "A-P12-L2",
+   "lang": "de",
+   "punkte": [
+    {
+     "id": "p1",
+     "text": "Es gibt „12 Karten“ – so wie du es gesagt hast, also 6 Paare, die verdeckt auf dem Tisch liegen."
+    },
+    {
+     "id": "p2",
+     "text": "Ein Tipp auf eine Karte dreht sie wie eine Buchseite um und zeigt ein fröhliches Bild wie Sonne, Blume oder Boot."
+    },
+    {
+     "id": "p3",
+     "text": "Zwei umgedrehte gleiche Bilder bleiben offen liegen; zwei verschiedene drehen sich nach kurzer Zeit wieder zu."
+    },
+    {
+     "id": "p4",
+     "text": "Ein Zähler oben zeigt, wie viele Züge du bisher gebraucht hast."
+    },
+    {
+     "id": "p5",
+     "text": "Wenn alle 6 Paare gefunden sind, erscheint der Text Gut gemacht und ein Knopf startet eine neue Runde."
+    }
+   ],
+   "plan": [
+    {
+     "id": "p1",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p2",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p3",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p4",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p4",
+      "schritte": [
+       {
+        "halte": [
+         "fire"
+        ],
+        "frames": 1
+       },
+       {
+        "halte": [],
+        "frames": 20
+       },
+       {
+        "halte": [
+         "right"
+        ],
+        "frames": 1
+       },
+       {
+        "halte": [],
+        "frames": 5
+       },
+       {
+        "halte": [
+         "fire"
+        ],
+        "frames": 1
+       },
+       {
+        "halte": [],
+        "frames": 60
+       }
+      ],
+      "erwartung": {
+       "art": "text_sichtbar",
+       "text": "Züge: 1 / 24"
+      }
+     }
+    },
+    {
+     "id": "p5",
+     "machbar": false,
+     "kunde": "Einen Knopf zum Antippen gibt es hier nicht. Eine neue Runde startest du stattdessen mit dem Feuer-Knopf.",
+     "szenario": null
+    }
+   ],
+   "a10": [
+    {
+     "id": "p1",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p2",
+     "erfuellt": false,
+     "notiz": "Das macht das Spiel noch nicht so, wie es hier steht.",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p3",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p4",
+     "erfuellt": false,
+     "notiz": "„Züge: 1 / 24“ war beim Ausprobieren nicht zu lesen.",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p5",
+     "erfuellt": false,
+     "notiz": "Einen Knopf zum Antippen gibt es hier nicht. Eine neue Runde startest du stattdessen mit dem Feuer-Knopf.",
+     "geprueft": "gelesen"
+    }
+   ],
+   "betroffen": [
+    "p2",
+    "p4"
+   ]
+  },
+  {
+   "karte": "A-P16-L2",
+   "lang": "de",
+   "punkte": [
+    {
+     "id": "p1",
+     "text": "Am Tisch sitzen du und genau ein Computer-Gegner; beide bekommen zu Beginn gleich viele Karten, und eine offene Karte liegt in der Mitte."
+    },
+    {
+     "id": "p2",
+     "text": "Du kannst nur eine Karte ablegen, die zur offenen Karte passt, nach Farbe oder Zahl."
+    },
+    {
+     "id": "p3",
+     "text": "Wenn du keine passende Karte hast, ziehst du eine Karte vom verdeckten Stapel."
+    },
+    {
+     "id": "p4",
+     "text": "Der Computer legt seine Karten nach einer kurzen Pause selbst ab, mal klüger, mal weniger klug."
+    },
+    {
+     "id": "p5",
+     "text": "Wer zuerst keine Karten mehr hat, gewinnt die Runde, und der Stand wird oben angezeigt."
+    },
+    {
+     "id": "p6",
+     "text": "Ein Knopf startet eine neue Runde, ohne dass das Spiel neu geladen werden muss."
+    }
+   ],
+   "plan": [
+    {
+     "id": "p1",
+     "machbar": true,
+     "kunde": "",
+     "szenario": {
+      "id": "p1",
+      "schritte": [
+       {
+        "halte": [],
+        "frames": 5
+       }
+      ],
+      "erwartung": {
+       "art": "text_sichtbar",
+       "text": "Deine Karten"
+      }
+     }
+    },
+    {
+     "id": "p2",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p3",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p4",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p5",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    },
+    {
+     "id": "p6",
+     "machbar": true,
+     "kunde": "",
+     "szenario": null
+    }
+   ],
+   "a10": [
+    {
+     "id": "p1",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gespielt"
+    },
+    {
+     "id": "p2",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p3",
+     "erfuellt": false,
+     "notiz": "Das macht das Spiel noch nicht so, wie es hier steht.",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p4",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p5",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    },
+    {
+     "id": "p6",
+     "erfuellt": true,
+     "notiz": "",
+     "geprueft": "gelesen"
+    }
+   ],
+   "betroffen": [
+    "p3"
+   ]
+  }
+ ]
+}
