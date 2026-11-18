@@ -45,7 +45,7 @@ export function meldung(job, e) {
   if (!e.ok) return { ...base, ok: false, grund: e.grund, alt: e.alt === true, ...(e.ki ? { ki: e.ki } : {}) };
   return {
     ...base, ok: true, titel: e.titel, punkte: e.punkte.map((p) => ({ id: p.id, erfuellt: p.erfuellt, notiz: p.notiz, geprueft: p.geprueft })),
-    spiel: e.spiel, plan: e.plan, ersetzt: e.ersetzt, versuche: (e.versuche || []).map((v) => ({ runde: v.runde, ok: v.ok, fehlerarten: v.fehlerarten, szenarien: v.szenarien || null }))
+    spiel: e.spiel, plan: e.plan, ersetzt: e.ersetzt, ueberstimmt: e.ueberstimmt || 0, szenarien: e.szenarien || [], versuche: (e.versuche || []).map((v) => ({ runde: v.runde, ok: v.ok, fehlerarten: v.fehlerarten, szenarien: v.szenarien || null }))
   };
 }
 
@@ -74,7 +74,7 @@ export function createWorker(o) {
     const m = meldung(job, e);
     await o.queue.ergebnis(m);
     if (e.ki) pauseBis = jetzt() + PAUSE_MS[e.ki];
-    log({ event: "fk2-bau", art: job.art, ok: e.ok, grund: e.grund || null, ki: e.ki || null, fehlt: e.ok ? e.fehlt : null, ersetzt: e.ersetzt || 0, ueberstimmt: e.ueberstimmt || 0, ms: Date.now() - t0, usd: m.usd });
+    log({ event: "fk2-bau", art: job.art, ok: e.ok, grund: e.grund || null, ki: e.ki || null, fehlt: e.ok ? e.fehlt : null, ersetzt: e.ersetzt || 0, ueberstimmt: e.ueberstimmt || 0, szenarien: (e.szenarien || []).map((s) => s.id + (s.ok ? ":ok" : ":" + s.grund) + "@" + s.anlauf + (s.kontrolle ? "k" : "")).join(" ") || null, ms: Date.now() - t0, usd: m.usd });
     return "gebaut";
   }
   return {

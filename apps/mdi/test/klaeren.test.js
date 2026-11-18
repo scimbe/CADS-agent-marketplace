@@ -4,6 +4,7 @@
 // werden darf, kommt hier nur als Serverantwort herein.
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { createRuntime } from "../src/app/runtime.js";
 import * as K from "../src/features/frei/klaerung.js";
 import { klaerVerdict, createKlaerung, OPS } from "../src/broker/klaerung.js";
@@ -315,6 +316,13 @@ test("Vertrag P3: Spielverweis nur vom eigenen Ursprung, Modul heisst nach seine
   assert.equal(fertigOf({ ...STATUS(3).body, abgebucht: undefined }), null, "ob abgebucht ist, sagt immer der Server");
   assert.equal(fertigOf({ ...STATUS(3).body, vorgemerkt: undefined }), null, "ob Guthaben vorgemerkt ist, auch");
   assert.equal(fertigOf({ ...STATUS(3).body, hinweis: "nachbessern_nicht_geschafft" }).hinweis, "nachbessern_nicht_geschafft");
+  // jeder Hinweis des Vertrags hat einen Satz in beiden Sprachen (Delta-Review 3: KI nicht erreichbar, Versuch zaehlt nicht)
+  for (const hw of K.HINWEISE) assert.equal(fertigOf({ ...STATUS(3).body, hinweis: hw }).hinweis, hw);
+  const view = fs.readFileSync(new URL("../src/features/frei/klaeren-view.js", import.meta.url), "utf8");
+  const tabelle = Object.fromEntries([...view.matchAll(/(\w+): "(k_nach_\w+)"/g)].map((m) => [m[1], m[2]]));
+  assert.deepEqual(Object.keys(tabelle).sort(), [...K.HINWEISE].sort());
+  for (const key of Object.values(tabelle)) for (const l of ["de", "en"]) assert.ok(KLAEREN_TEXTS[l][key], l + " " + key);
+  assert.match(KLAEREN_TEXTS.de.k_nach_ki, /nicht erreichbar – dein Versuch zählt nicht/);
   assert.equal(klaerVerdict(402, { error: "guthaben" }).how, "guthaben");
 });
 

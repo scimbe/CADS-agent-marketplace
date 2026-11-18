@@ -108,6 +108,8 @@ export function createBauPipeline(deps) {
   }
   const szenarienOf = (plan) => plan.punkte.filter((p) => p.szenario).map((p) => p.szenario);
   const bestanden = (report) => (report.szenarien || []).filter((s) => s.ok).length;
+  /** Szenario-Ergebnisse fuer Wrapper und Log: je Punkt bestanden, Grund, entscheidender Anlauf (1|2), Kontrolle */
+  const szenarienKurz = (report) => (report.szenarien || []).map((s) => ({ id: s.id, ok: s.ok, grund: s.grund || null, anlauf: (s.wert && s.wert.anlauf) || 1, kontrolle: !!(s.wert && s.wert.kontrolle) }));
 
   /** Bauen bzw. gezielt aendern, pruefen, reparieren, bis gruen (Invarianten + Policy) oder Grenze. */
   async function bauBisGruen(ctx, erstText, plan) {
@@ -160,8 +162,16 @@ export function createBauPipeline(deps) {
           "\n\nCode mit Zeilennummern:\n```\n" + numbered(gebaut.code) + "\n```\n\nBildschirmfotos aus dem echten Spiel folgen (nach ca. 1 s und 4 s Zufallseingabe)." },
         ...fotos.shots.map((buf) => ({ type: "image", source: { type: "base64", media_type: "image/png", data: buf.toString("base64") } }))
       ];
-      const r = await ask(ctx, "abnahme", content, { max_tokens: GRENZEN.maxTokensAbnahme, schema: SCHEMA_ABNAHME }, "abnahme");
-      urteil = r.json && Array.isArray(r.json.punkte) ? r.json : null;   // ohne gueltiges Urteil: jeder gelesene Punkt fehlt
+      // ein KI-Fehler hier verwirft sonst ein fertiges, geprueftes Spiel: einmal wiederholen (Review Nit 8)
+      const fragen = (tag) => ask(ctx, "abnahme", content, { max_tokens: GRENZEN.maxTokensAbnahme, schema: SCHEMA_ABNAHME }, tag);
+      let r;
+      try { r = await fragen("abnahme"); } catch (e) {
+        const ki = kiKlasse(e);
+        if (!ki || ctx.signal.aborted) throw e;
+        log({ event: "fk2-bau-ki", tag: ctx.tag, ki, status: Number(e.status) || 0, phase: "abnahme", wiederholt: true });
+        r = await fragen("abnahme2");
+      }
+      urteil = r.json && Array.isArray(r.json.punkte) ? r.json : null;   // ohne gueltiges Urteil: kein Punkt wird erfuellt (bewerte)
       if (!urteil) log({ event: "fk2-bau-abnahme", tag: ctx.tag, ok: false, why: "kein gueltiges Urteil" });
     }
     const b = bewerte(auftrag, plan, gebaut.report.szenarien || [], urteil);
@@ -181,7 +191,7 @@ export function createBauPipeline(deps) {
     }
   }
   const lieferung = (ctx, auftrag, plan, gebaut, ab, versuche) => fertig(ctx, {
-    ok: true, titel: auftrag.titel, punkte: ab.punkte, fehlt: ab.fehlt, ersetzt: ab.ersetzt, ueberstimmt: ab.ueberstimmt, nachbessernHinweis: ab.nachbessern,
+    ok: true, titel: auftrag.titel, punkte: ab.punkte, fehlt: ab.fehlt, ersetzt: ab.ersetzt, ueberstimmt: ab.ueberstimmt, szenarien: szenarienKurz(gebaut.report), nachbessernHinweis: ab.nachbessern,
     spiel: { code: gebaut.code, sha256: sha256(gebaut.code) }, plan: { typ: plan.typ, spielplan: plan.spielplan, punkte: plan.punkte }, versuche
   });
 

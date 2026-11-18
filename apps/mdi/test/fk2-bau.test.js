@@ -44,10 +44,22 @@ test("Abnahme je Punkt: gespielt schlaegt gelesen, nicht machbar fehlt, bestande
   assert.equal(b.ersetzt, 1, "p3 ohne Satz");
   assert.deepEqual([b.punkte[2].erfuellt, b.punkte[2].notiz], [false, "Ob das Spiel das so macht, konnten wir nicht sicher feststellen."], "ohne Urteil der Abnahme ist ein gelesener Punkt offen");
   // Szenario besteht, Modell sagt fehlt mit gueltigem Satz: fehlt mit diesem Satz (das Szenario prueft nicht jedes Detail)
+  // (das Gespielte ist verworfen, die Abnahme hat entschieden: gelesen, Review Nit 10)
   b = bewerte(AUFTRAG, plan, [{ id: "p1", ok: true, grund: null }], { punkte: [{ id: "p1", urteil: "fehlt", kunde: "Das Boot faehrt nur nach links, nicht nach rechts." }] });
-  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[0].notiz, b.ueberstimmt], [false, "Das Boot faehrt nur nach links, nicht nach rechts.", 0]);
+  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[0].notiz, b.punkte[0].geprueft, b.ueberstimmt], [false, "Das Boot faehrt nur nach links, nicht nach rechts.", "gelesen", 0]);
+  // ohne gueltiges Urteil (null, ungueltiges JSON) wird nie automatisch erfuellt, auch kein bestandenes Szenario
+  const OFFEN = "Ob das Spiel das so macht, konnten wir nicht sicher feststellen.";
   b = bewerte(AUFTRAG, plan, [{ id: "p1", ok: true, grund: null }], null);
-  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[2].erfuellt, b.ueberstimmt], [true, false, 1], "ohne Urteil: gespielt und bestanden gilt, gelesen bleibt offen");
+  assert.deepEqual(b.punkte.map((p) => [p.id, p.erfuellt, p.geprueft]), [["p1", false, "gelesen"], ["p2", false, "gelesen"], ["p3", false, "gelesen"]]);
+  assert.deepEqual([b.punkte[0].notiz, b.ueberstimmt], [OFFEN, 0]);
+  // schwache Art (eine Figur ist zu sehen): bestanden reicht nur mit bestaetigendem Urteil; "fehlt" ohne Satz -> offen
+  const sicht = szenarioAusPlan("p1", { pruefbar: true, schritte: [{ halte: [], frames: 10 }], art: "figur_sichtbar", emoji: "⛵", richtung: "", text: "" }).szenario;
+  const planS = { punkte: [{ ...plan.punkte[0], szenario: sicht }, plan.punkte[1], plan.punkte[2]] };
+  b = bewerte(AUFTRAG, planS, [{ id: "p1", ok: true, grund: null }], { punkte: [{ id: "p1", urteil: "fehlt", kunde: "x = 1;" }, { id: "p3", urteil: "erfuellt", kunde: "" }] });
+  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[0].notiz, b.punkte[0].geprueft, b.ueberstimmt], [false, OFFEN, "gelesen", 0]);
+  b = bewerte(AUFTRAG, planS, [{ id: "p1", ok: true, grund: null }], { punkte: [{ id: "p1", urteil: "erfuellt", kunde: "" }] });
+  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[0].geprueft], [true, "gespielt"]);
+  assert.equal(szenarioSatz(sz, { grund: "von_allein" }), "Beim Ausprobieren passierte das auch ohne Tastendruck, die Steuerung dafür haben wir nicht gesehen.");
   for (const t of ["Beim Treffer macht es Pling.", "Die Boote werden noch nicht schneller."]) assert.ok(istKundensatz(t), t);
   for (const t of ["Zeile 14: g.addScore fehlt", "Bot greedy hat 0 Punkte", "update(s) setzt nichts", "p95 4.2 ms", "Gegner wird getötet", "x".repeat(161)]) assert.ok(!istKundensatz(t), t);
   assert.equal(szenarioSatz({ erwartung: { art: "punkte_steigen" } }, { grund: "steuerung_fehlt" }, "en"), "The game has no button for this.");
@@ -282,4 +294,35 @@ test("KI-Ausfall im Bau: ki-limit (auch als 400 mit Limit-Text) endet ehrlich mi
   assert.equal(await w.einmal(), "ki-pause"); assert.equal(holen, 1);
   t += 15 * 60000 + 1;
   assert.equal(await w.einmal(), "gebaut"); assert.equal(holen, 2);
+});
+
+test("Nit 8: KI-Fehler in der Abnahme -> einmal wiederholen, bevor das fertige Spiel verworfen wird; Meldung traegt ueberstimmt und Anlauf", async () => {
+  const pruef = { async pruefe() { return { ok: true, policy: [], report: { ok: true, controls: ["left"], checks: {}, bots: {}, szenarien: [{ id: "p1", ok: true, grund: null, wert: { anlauf: 2 } }] } }; }, async fotos() { return { shots: [], status: null, errs: [] }; } };
+  const istAbnahme = (req) => /^Rolle: ABNAHME/.test(req.system[1].text);
+  const lauf = async (fehler) => {
+    let n = 0;
+    const fake = async (req, o) => {
+      if (istAbnahme(req) && n++ < fehler) throw Object.assign(new Error("529 overloaded"), { status: 529 });
+      const r = await modellDouble()(req, o);
+      if (!/^Rolle: PLANER/.test(req.system[1].text)) return r;
+      // Plan mit einem Szenario fuer p1 (der Pruef-Double meldet es als im zweiten Anlauf bestanden)
+      const plan = JSON.parse(r.content[0].text);
+      plan.punkte[0].machbar = true;
+      plan.punkte[0].szenario = { pruefbar: true, schritte: [{ halte: ["left"], frames: 60 }], art: "figur_bewegt", emoji: "⛵", richtung: "links", text: "" };
+      return { ...r, content: [{ type: "text", text: JSON.stringify(plan) }] };
+    };
+    const logs = [];
+    const p = createBauPipeline({ llm: createLlm({ ledger: createLedger({ cap: 1 }), fake }), pruef, rollen: ROLLEN_STANDARD, log: (x) => logs.push(x) });
+    return { e: await p.bauen(AUFTRAG, { signal: new AbortController().signal, ledger: createLedger({ cap: 1 }) }), logs, n };
+  };
+  const eins = await lauf(1);
+  assert.equal(eins.e.ok, true, "ein KI-Fehler: zweiter Versuch, Spiel geliefert");
+  assert.equal(eins.n, 2);
+  assert.ok(eins.logs.some((l) => l.event === "fk2-bau-ki" && l.phase === "abnahme" && l.wiederholt === true));
+  const zwei = await lauf(2);
+  assert.deepEqual([zwei.e.ok, zwei.e.grund, zwei.e.ki, zwei.n], [false, "ki_nicht_verfuegbar", "ki-ueberlastet", 2], "zweimal: ehrlich nicht verfuegbar, kein dritter Versuch");
+  // Meldung an den Wrapper: ueberstimmt und die Szenario-Ergebnisse mit Anlauf (Review Nit 9)
+  const m = meldung({ auftrag: { id: "x" }, lease: "l", art: "neu" }, eins.e);
+  assert.equal(typeof m.ueberstimmt, "number");
+  assert.deepEqual(m.szenarien, [{ id: "p1", ok: true, grund: null, anlauf: 2, kontrolle: false }]);
 });

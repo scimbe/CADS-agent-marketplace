@@ -597,3 +597,15 @@ test("KI nicht erreichbar beim KI-Bild: beim Senden und in der Bildpruefung ders
   const s = await createBild({ api: { raw: async () => ({ status: 503, body: { error: "ki-nicht-verfuegbar", grund: "ki-limit" } }) } }).make({ use: "card", text: "Ein Fuchs" });
   assert.equal(s.how, "kiaus");
 });
+
+test("Delta-Review 5: generierende Aufrufe des Klaerungsdialogs warten so lange wie der Server (90 s), alle anderen 20 s", async () => {
+  const { createApi } = await import("../src/broker/api.js");
+  const fristen = [], orig = globalThis.setTimeout;
+  globalThis.setTimeout = (fn, ms, ...a) => { fristen.push(ms); return orig(fn, ms, ...a); };   // echte Frist, wird nach der Antwort geloescht
+  try {
+    const api = createApi({ location: { protocol: "https:", host: "h" }, fetch: async () => ({ status: 200, json: async () => ({}) }) });
+    for (const op of ["fragen", "antwort", "liste", "status", "nachbessern"]) await api.raw("POST", "/api/duell/klaerung/" + op, {});
+    await api.raw("POST", "/api/duell/ai", {});
+  } finally { globalThis.setTimeout = orig; }
+  assert.deepEqual(fristen, [90000, 90000, 90000, 20000, 20000, 20000]);
+});

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runSzenarien, runSzenario } from "../src/spiel/szenario.js";
-import { bewerte } from "../bau/abnahme.mjs";
+import { bewerte, STARK } from "../bau/abnahme.mjs";
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "fk2-a10");
 const FAELLE = JSON.parse(fs.readFileSync(path.join(DIR, "faelle.json"), "utf8")).faelle;
@@ -33,17 +33,21 @@ test("A10-Regression: die betroffenen Punkte der fuenf Karten werden nicht mehr 
     const gespielt = runSzenarien(mod, sz, { seed: SEED });
     const b = bewerte({ punkte: fall.punkte, lang: fall.lang }, planVon(fall), gespielt, urteilWieA10(fall));
     for (const id of fall.betroffen) {
-      const p = b.punkte.find((x) => x.id === id), a10 = fall.a10.find((x) => x.id === id);
-      assert.equal(p.geprueft, a10.geprueft, fall.karte + " " + id);
-      if (p.geprueft === "gespielt") {
+      const p = b.punkte.find((x) => x.id === id), a10 = fall.a10.find((x) => x.id === id), pl = fall.plan.find((x) => x.id === id);
+      assert.notEqual(p.notiz, ALT_ERSATZ, fall.karte + " " + id + ": kein Satz, der einen Mangel behauptet");
+      if (pl.szenario) {
         assert.equal(gespielt.find((s) => s.id === id).ok, true, fall.karte + " " + id + ": Szenario besteht mit dem gespeicherten Code");
-        assert.equal(p.erfuellt, true, fall.karte + " " + id + ": bestandenes Szenario ist erfuellt");
+        if (STARK.includes(pl.szenario.erwartung.art)) assert.deepEqual([p.erfuellt, p.geprueft], [true, "gespielt"], fall.karte + " " + id + ": starke Art, bestanden");
+        // schwache Art ohne bestaetigendes Urteil: offen, ohne Behauptung (Delta-Review 1)
+        else assert.deepEqual([p.erfuellt, p.notiz, p.geprueft], [false, NEU_ERSATZ, "gelesen"], fall.karte + " " + id + ": schwache Art, offen");
       } else {
         // gelesen, nichts gespielt: offen, aber ohne Behauptung ueber das Spiel
-        assert.equal(p.notiz, NEU_ERSATZ, fall.karte + " " + id);
-        assert.notEqual(p.notiz, a10.notiz, fall.karte + " " + id + ": der behauptende Satz ist weg");
+        assert.deepEqual([p.erfuellt, p.notiz, p.geprueft], [false, NEU_ERSATZ, a10.geprueft], fall.karte + " " + id);
       }
     }
+    // mit bestaetigendem Urteil sind auch die schwachen Arten erfuellt (das Szenario widerspricht nicht)
+    const ja = { punkte: fall.punkte.map((x) => ({ id: x.id, urteil: "erfuellt", kunde: "" })) };
+    for (const id of fall.betroffen.filter((i) => fall.plan.find((x) => x.id === i).szenario)) assert.equal(bewerte({ punkte: fall.punkte, lang: fall.lang }, planVon(fall), gespielt, ja).punkte.find((x) => x.id === id).erfuellt, true, fall.karte + " " + id);
     // nicht betroffene Punkte: Urteil wie in A10 (die Lockerung macht nichts anderes gruen)
     for (const a10 of fall.a10.filter((x) => !fall.betroffen.includes(x.id))) {
       const p = b.punkte.find((x) => x.id === a10.id);
@@ -57,7 +61,7 @@ test("A10-Regression: P12 L2 \"Züge: 1 / 24\" scheiterte am Bot (Feuer auf unge
   const fall = FAELLE.find((f) => f.karte === "A-P12-L2"), sz = fall.plan.find((p) => p.id === "p4").szenario;
   assert.deepEqual(sz.schritte.map((s) => s.frames), [1, 20, 1, 5, 1, 60], "kurze Feuer-Schritte mitten in der Folge");
   const r = runSzenario(await modul(code(fall.karte)), sz, { seed: SEED });
-  assert.equal(r.ok, true); assert.equal(r.wert.anlauf, undefined, "schon der erste Anlauf besteht");
+  assert.equal(r.ok, true); assert.equal(r.wert.anlauf, 1, "schon der erste Anlauf besteht");
 });
 
 test("Negativtest: ohne die Funktion findet der Bot die Luecke weiter (auch im zweiten Anlauf), Satz fest", async () => {

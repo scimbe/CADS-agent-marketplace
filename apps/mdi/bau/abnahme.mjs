@@ -4,14 +4,17 @@
 // Regel je Punkt (streng, nichts wird still durchgewunken):
 //   nicht machbar (Planer)           -> fehlt, Satz des Planers (gelesen)
 //   Szenario vorhanden und gueltig   -> gespielt: scheitert das Szenario, fehlt der Punkt mit dem festen Satz zum Grund (kein
-//                                       Modelltext). Besteht es, ist der Punkt erfuellt; die Abnahme kann das nur mit einem
-//                                       gueltigen Satz fuer die Person widerlegen (was im Spiel anders ist). Ein "fehlt" ohne
-//                                       solchen Satz oder ein fehlendes Urteil schlaegt das Gespielte nicht (A10: falsche
-//                                       "fehlt" bei bestandenen Szenarien); gezaehlt als ueberstimmt, nie still
+//                                       Modelltext). Besteht es:
+//     Abnahme sagt erfuellt          -> erfuellt (gespielt)
+//     Abnahme sagt fehlt mit Satz    -> fehlt mit diesem Satz (gelesen: das Gespielte wurde verworfen, die Abnahme entschied)
+//     Abnahme sagt fehlt ohne Satz   -> STARKE Art (STARK: die Eingabe muss etwas bewirken, Kontrolle ohne Eingabe in
+//                                       szenario.js): erfuellt, gezaehlt als ueberstimmt (A10: falsche "fehlt"). SCHWACHE Art
+//                                       (eine Figur, ein Text, Punkte sind zu sehen): offen, ERSATZ.fehlt (gelesen)
+//     kein gueltiges Urteil          -> offen, ERSATZ.fehlt (gelesen); nie automatisch erfuellt
 //   kein Szenario                    -> gelesen ("nicht automatisch pruefbar"): Urteil der Abnahme aus Code, Bot-Bericht, Fotos;
 //                                       ohne gueltigen Satz bleibt der Punkt offen, mit einem Satz, der nichts ueber das Spiel
 //                                       behauptet (ERSATZ.fehlt), weil nichts gespielt wurde
-//   kein Urteil der Abnahme          -> gelesen: fehlt
+//   kein Urteil der Abnahme          -> gelesen: offen
 // Jede Notiz ist ein Satz fuer die Person: ohne Code, Zeilen, Funktionsnamen oder Bot-Werte. Ein Satz des Modells, der das
 // nicht schafft, wird durch einen festen, ehrlichen Satz ersetzt und als ersetzt gezaehlt (ergebnis.ersetzt, Log im Worker).
 import { checkSzenario, RICHTUNGEN } from "../src/spiel/szenario.js";
@@ -20,12 +23,15 @@ import { checkTexte } from "./policy.mjs";
 /** Hoechstlaenge einer Notiz (= LEN.punkt des Vertrags features/frei/klaerung.js) */
 export const NOTIZ_MAX = 160;
 export const GEPRUEFT = Object.freeze(["gespielt", "gelesen"]);
+/** Szenario-Arten, deren Bestehen ohne bestaetigendes Urteil reicht: die Eingabe muss etwas bewirken (Bewegung, Leben, Ende,
+ *  Sieg, Level). Bei den anderen (punkte_steigen, figur_sichtbar, mehr_figuren, text_sichtbar) beweist das Bestehen wenig. */
+export const STARK = Object.freeze(["figur_bewegt", "leben_sinken", "spiel_endet", "sieg", "level_steigt"]);
 
 const RICHTUNG_TEXT = { de: { links: "nach links", rechts: "nach rechts", hoch: "nach oben", runter: "nach unten" }, en: { links: "left", rechts: "right", hoch: "up", runter: "down" } };
 /** Feste Saetze zu einem nicht bestandenen Szenario (Art bzw. Grund). {e} Emoji, {r} Richtung, {t} Text */
 const SZ_SATZ = {
   de: {
-    steuerung_fehlt: "Dafür gibt es im Spiel keine passende Taste.", fehler: "Beim Ausprobieren ist das Spiel an dieser Stelle stehen geblieben.",
+    steuerung_fehlt: "Dafür gibt es im Spiel keine passende Taste.", von_allein: "Beim Ausprobieren passierte das auch ohne Tastendruck, die Steuerung dafür haben wir nicht gesehen.", fehler: "Beim Ausprobieren ist das Spiel an dieser Stelle stehen geblieben.",
     figur_fehlt: "{e} war beim Ausprobieren nicht zu sehen.",
     punkte_steigen: "Beim Ausprobieren gab es dafür keine Punkte.", leben_sinken: "Beim Ausprobieren hat das kein Leben gekostet.",
     spiel_endet: "Beim Ausprobieren war das Spiel danach nicht vorbei.", sieg: "Beim Ausprobieren ließ sich so nicht gewinnen.",
@@ -34,7 +40,7 @@ const SZ_SATZ = {
     text_sichtbar: "„{t}“ war beim Ausprobieren nicht zu lesen."
   },
   en: {
-    steuerung_fehlt: "The game has no button for this.", fehler: "The game got stuck at this point when we tried it.",
+    steuerung_fehlt: "The game has no button for this.", von_allein: "Trying it, this happened without pressing anything; we did not see the controls for it.", fehler: "The game got stuck at this point when we tried it.",
     figur_fehlt: "{e} did not show up when we tried it.",
     punkte_steigen: "Trying it gave no points for this.", leben_sinken: "Trying it did not cost a life.",
     spiel_endet: "Trying it, the game did not end.", sieg: "Trying it, the game could not be won this way.",
@@ -62,7 +68,7 @@ const fill = (tpl, o) => tpl.replace("{e}", o.e || "").replace("{r}", o.r || "")
 /** Satz zu einem nicht bestandenen Szenario (fest, nie vom Modell) */
 export function szenarioSatz(sz, res, lang = "de") {
   const L = SZ_SATZ[lang] ? lang : "de", e = sz.erwartung;
-  const key = res.grund === "steuerung_fehlt" || res.grund === "fehler" || res.grund === "figur_fehlt" ? res.grund : e.art;
+  const key = ["steuerung_fehlt", "fehler", "figur_fehlt", "von_allein"].includes(res.grund) ? res.grund : e.art;
   return fill(SZ_SATZ[L][key], { e: e.emoji, r: e.richtung ? RICHTUNG_TEXT[L][e.richtung] : "", t: e.text });
 }
 
@@ -102,9 +108,9 @@ export function bewerte(auftrag, plan, gespielt, urteil) {
       const s = gespielt.find((x) => x.id === p.id);
       if (!s || !s.ok) return { id: p.id, erfuellt: false, notiz: s ? szenarioSatz(pl.szenario, s, L) : SZ_SATZ[L].fehler, geprueft: "gespielt" };
       if (modellOk) return { id: p.id, erfuellt: true, notiz: "", geprueft: "gespielt" };
-      if (u && istKundensatz(u.kunde)) return { id: p.id, erfuellt: false, notiz: u.kunde.trim(), geprueft: "gespielt" };
-      ueberstimmt++;
-      return { id: p.id, erfuellt: true, notiz: "", geprueft: "gespielt" };
+      if (u && istKundensatz(u.kunde)) return { id: p.id, erfuellt: false, notiz: u.kunde.trim(), geprueft: "gelesen" };
+      if (u && STARK.includes(pl.szenario.erwartung.art)) { ueberstimmt++; return { id: p.id, erfuellt: true, notiz: "", geprueft: "gespielt" }; }
+      return { id: p.id, erfuellt: false, notiz: kunde(u ? u.kunde : "", "fehlt"), geprueft: "gelesen" };
     }
     return { id: p.id, erfuellt: modellOk, notiz: modellOk ? "" : kunde(u ? u.kunde : "", "fehlt"), geprueft: "gelesen" };
   });

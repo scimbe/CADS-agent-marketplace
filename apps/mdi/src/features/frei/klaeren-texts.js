@@ -61,6 +61,7 @@ export const KLAEREN_TEXTS = {
     k_probe_e_nicht_hier: "Probe spielen geht nur in der App.", k_probe_e_ursprung: "Das Spiel kommt nicht von unserem Spiel-Server. Es wird nicht gestartet.",
     k_nach_alt: "Die Nachbesserung hat unsere Prüfung nicht bestanden. Du siehst die vorige Version.",
     k_nach_guthaben: "Die Nachbesserung ist gelungen, aber dafür fehlt dir 1 Guthaben. Du siehst die vorige Version; abgebucht ist nichts.",
+    k_nach_ki: "Die KI war gerade nicht erreichbar – dein Versuch zählt nicht. Du siehst die vorige Version.",
     k_nach_label: "Was soll anders werden? (optional)", k_nach_ph: "z. B. Die Boote sollen schneller werden.",
     k_behalten_ab: "Behalten. {n} Guthaben ist abgebucht.", k_e_guthaben: "Dafür fehlt dir Guthaben. Abgebucht ist nichts."
   },
@@ -123,6 +124,7 @@ export const KLAEREN_TEXTS = {
     k_probe_e_nicht_hier: "Trying it only works in the app.", k_probe_e_ursprung: "The game does not come from our game server. It will not start.",
     k_nach_alt: "The fix did not pass our check. You see the previous version.",
     k_nach_guthaben: "The fix worked, but you are missing 1 credit for it. You see the previous version; nothing is charged.",
+    k_nach_ki: "The AI could not be reached just now – this try does not count. You see the previous version.",
     k_nach_label: "What should change? (optional)", k_nach_ph: "e.g. The boats should get faster.",
     k_behalten_ab: "Kept. {n} credit is charged.", k_e_guthaben: "You don't have enough credit for this. Nothing is charged."
   }

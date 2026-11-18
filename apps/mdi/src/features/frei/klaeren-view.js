@@ -6,6 +6,9 @@
 import { kt } from "./klaeren-texts.js";
 import { createSpielHost } from "../../broker/spiel-host.js";
 
+/** Satz je Hinweis des Vertrags (K.HINWEISE): ein Eintrag je Wert, kein Sonderfall */
+const HINWEIS_TEXT = Object.freeze({ nachbessern_nicht_geschafft: "k_nach_alt", guthaben_fehlt: "k_nach_guthaben", ki_nicht_erreichbar: "k_nach_ki" });
+
 /** D: { h, K } (K: ./klaerung.js, der Vertrag) */
 export function makeKlaerenView(D) {
   const { h, K } = D;
@@ -189,7 +192,7 @@ export function makeKlaerenView(D) {
     if (f.wartet && f.baut) return { body: [h("h2", { class: "k-h", key: "h" }, kt(lang, "k_baut_h")), h("p", { class: "k-titel", key: "t" }, f.titel), status(kt(lang, "k_baut"), "hint strong", "bt"), errLine(lang, k.err)], primary: neu, secondary: [] };
     if (f.wartet) return { body: [h("h2", { class: "k-h", key: "h" }, f.titel), status(kt(lang, "k_nach_ok", { n: f.left }), "k-ok", "nb"), h("p", { class: "hint", key: "wt" }, kt(lang, "k_nach_wartet")), errLine(lang, k.err)], primary: neu, secondary: [] };
     const body = [h("h2", { class: "k-h", key: "h" }, f.titel),
-      f.hinweis ? status(kt(lang, f.hinweis === "guthaben_fehlt" ? "k_nach_guthaben" : "k_nach_alt"), "warn", "hw") : null,
+      f.hinweis ? status(kt(lang, HINWEIS_TEXT[f.hinweis]), "warn", "hw") : null,
       resultList(lang, f, false),
       status(f.fehlt === 0 ? kt(lang, "k_alles") : f.fehlt === 1 ? kt(lang, "k_fehlt_1") : kt(lang, "k_fehlt_n", { n: f.fehlt }), "hint strong", "fs"),
       f.punkte.some((p) => p.geprueft === "gelesen") ? h("p", { class: "hint", key: "gl" }, kt(lang, "k_gelesen_hint")) : null,

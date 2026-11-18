@@ -17,10 +17,10 @@ export const RICHTUNGEN = Object.freeze({ links: [-1, 0], rechts: [1, 0], hoch: 
 export const SZ = Object.freeze({ max: 8, schritte: 6, frames: 1200, bewegtPx: 8, textLen: 40 });
 /** Ein nicht erreichtes Szenario bekommt einen zweiten Anlauf mit dieser Dauer je Schritt (A10: zu knappe Szenarien) */
 export const SZ_ZWEITER = 2;
-/** Obergrenze der Spielschritte aller Szenarien einer Pruefung inkl. zweitem Anlauf (Grundlage der Fristen in spiel/fristen.js) */
-export const SZ_MAX_STEPS = SZ.max * SZ.frames * (1 + SZ_ZWEITER);
+/** Obergrenze der Spielschritte aller Szenarien einer Pruefung inkl. zweitem Anlauf und Kontrollen (Grundlage der Fristen in spiel/fristen.js) */
+export const SZ_MAX_STEPS = SZ.max * SZ.frames * 2 * (1 + SZ_ZWEITER);   // je Anlauf hoechstens eine Kontrolle gleicher Dauer
 /** Gruende eines nicht bestandenen Szenarios (geschlossene Liste; die Kundensaetze dazu stehen in bau/kundensprache.mjs) */
-export const GRUENDE = Object.freeze(["nicht_erreicht", "figur_fehlt", "steuerung_fehlt", "fehler"]);
+export const GRUENDE = Object.freeze(["nicht_erreicht", "figur_fehlt", "steuerung_fehlt", "von_allein", "fehler"]);
 
 /** Text, wie ihn eine Person liest: Gross/klein und Leerraum egal */
 const norm = (t) => String(t).toLowerCase().replace(/\s+/g, " ").trim();
@@ -73,17 +73,34 @@ const mitte = (pts) => [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.redu
 
 /**
  * Spielt ein Szenario auf einem frischen Spiel; nicht erreicht -> ein zweiter Anlauf mit doppelter Dauer (SZ_ZWEITER).
+ * wert.anlauf sagt, welcher Anlauf entschieden hat (1|2); wert.kontrolle, dass es auch ohne Eingabe geschah.
  * @param {object} mod  Spielmodul
  * @param {object} sz   geprueftes Szenario (checkSzenario)
  * @param {{seed:string, tick?:() => void}} o
  * @returns {{id:string, ok:boolean, grund:string|null, wert:object}}
  */
 export function runSzenario(mod, sz, o) {
-  const r = anlauf(mod, sz, o, 1, "");
-  if (r.ok || (r.grund !== "nicht_erreicht" && r.grund !== "figur_fehlt")) return r;
+  const r = mitKontrolle(mod, sz, o, 1, "");
+  if (r.ok || !["nicht_erreicht", "figur_fehlt", "von_allein"].includes(r.grund)) return { ...r, wert: { ...r.wert, anlauf: 1 } };
   // zweiter Anlauf: jede Eingabe doppelt so lange, neue Zufallsfolge. Erst wenn auch er scheitert, fehlt der Punkt.
-  const r2 = anlauf(mod, sz, o, SZ_ZWEITER, "|2");
+  const r2 = mitKontrolle(mod, sz, o, SZ_ZWEITER, "|2");
   return { ...r2, wert: { ...r2.wert, anlauf: 2 } };
+}
+
+/** Arten, bei denen das Spiel das Erwartete auch von allein tun kann (Figur faellt, Gegner kommt): dort zaehlt nur, was die
+ *  Eingabe bewirkt. */
+export const MIT_KONTROLLE = Object.freeze(["figur_bewegt", "leben_sinken"]);
+/**
+ * Ein Anlauf mit Kontrolle: Haelt das Szenario Tasten und ist die Art in MIT_KONTROLLE, laeuft dieselbe Dauer ohne Eingabe
+ * mit (gleicher Seed). Besteht auch die Kontrolle, hat die Eingabe nichts bewirkt: nicht bestanden. Ein Szenario ganz ohne
+ * Tasten prueft gerade das, was von allein geschieht (z. B. "ein Gegner kostet ein Leben"), und hat keine Kontrolle.
+ */
+function mitKontrolle(mod, sz, o, dauer, salz) {
+  const r = anlauf(mod, sz, o, dauer, salz);
+  if (!r.ok || !MIT_KONTROLLE.includes(sz.erwartung.art) || sz.schritte.every((s) => !s.halte.length)) return r;
+  const leer = { ...sz, schritte: sz.schritte.map((s) => ({ halte: [], frames: s.frames })) };
+  const k = anlauf(mod, leer, o, dauer, salz);
+  return k.ok ? { id: sz.id, ok: false, grund: "von_allein", wert: { ...r.wert, kontrolle: true } } : r;
 }
 
 /** Ein Anlauf auf einem frischen Spiel; dauer streckt jeden Schritt. */

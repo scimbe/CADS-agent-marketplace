@@ -85,3 +85,30 @@ test("Szenarien laufen in der Pruefung nach den Invarianten, entscheiden nicht u
   assert.match(checkToFrame({ ...start, szenarien: [{ id: "p1" }] }), /Szenario/);
   assert.equal(checkToFrame({ ...start, szenarien: [] }), null);
 });
+
+// Delta-Review 2: bei figur_bewegt und leben_sinken laeuft eine Kontrolle ohne Eingabe mit
+const FALL = {
+  title: "Fall", controls: ["left", "right", "down"], lives: 3,
+  init: () => ({ y: 100, t: 0, eigen: 0 }),
+  update(s, inp, g) {
+    s.y += 2;                                // die Figur faellt von allein
+    if (inp.down) s.eigen += 3;              // "runter" bewegt eine zweite Figur, nur auf Tastendruck
+    s.t += 1; if (s.t % 100 === 0) g.loseLife();   // ein Leben geht von allein verloren
+    if (s.y > 600) s.y = 100;
+  },
+  draw(s, d) { d.clear("cream"); d.emoji("🍎", 180, s.y, 30); d.emoji("🐢", 60, 100 + s.eigen, 30); }
+};
+
+test("Szenario mit Kontrolle: was auch ohne Eingabe geschieht, besteht nicht (Figur faellt von allein); Anlauf im Ergebnis", () => {
+  const fallen = runSzenario(FALL, sz("p1", [{ halte: ["down"], frames: 60 }], { art: "figur_bewegt", emoji: "🍎", richtung: "runter" }), { seed: "t" });
+  assert.deepEqual([fallen.ok, fallen.grund, fallen.wert.kontrolle, fallen.wert.anlauf], [false, "von_allein", true, 2], "auch im zweiten Anlauf von allein");
+  const echt = runSzenario(FALL, sz("p2", [{ halte: ["down"], frames: 60 }], { art: "figur_bewegt", emoji: "🐢", richtung: "runter" }), { seed: "t" });
+  assert.deepEqual([echt.ok, echt.wert.anlauf, echt.wert.kontrolle], [true, 1, undefined], "die Taste bewegt die Figur, die Kontrolle nicht");
+  const leben = runSzenario(FALL, sz("p3", [{ halte: ["right"], frames: 300 }], { art: "leben_sinken" }), { seed: "t" });
+  assert.deepEqual([leben.ok, leben.grund], [false, "von_allein"], "Leben geht auch ohne Eingabe verloren");
+  // ohne Tasten prueft das Szenario gerade das, was von allein geschieht: keine Kontrolle
+  const ohne = runSzenario(FALL, sz("p4", [{ halte: [], frames: 300 }], { art: "leben_sinken" }), { seed: "t" });
+  assert.deepEqual([ohne.ok, ohne.wert.anlauf], [true, 1]);
+  // andere Arten haben keine Kontrolle (Punkte koennen auch von allein steigen, das prueft die Abnahme)
+  assert.equal(runSzenario(BOOT, sz("p5", [{ halte: ["fire"], frames: 60 }], { art: "punkte_steigen" }), { seed: "t" }).ok, true);
+});
