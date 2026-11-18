@@ -38,6 +38,13 @@ Dieses Board ist die einzige Koordinationsstelle für alle Agenten. Freigabe des
 | A12 | Release „Karte fertig“ für das Tester-Konto | Integrator | – | – | offen | A3, A10 |
 | A13 | Deck-Befüllung: 70 Agenten (50 Spiele, 20 Karten), disjunkt, „(KI)“ | offen | – | – | offen | A12; Budget: Nachfrage ab 30 $ |
 | R1 | Impressum und Datenschutz (Plan `06-plan/recht-plan.md`) | – | – | – | blockiert | Angaben des Users |
+| B1 | Hotfix live (18.11. 07:20): Volume `mdi-bau-state` gehörte root, der Bau-Dienst läuft als 1000 → EACCES auf `kosten-*.json.tmp`, jeder Bau scheiterte. Live: `chown 1000:1000` per Einmal-Container, Schreibtest ok, ohne Neustart. **Noch zu tun:** `deploy/fk2-p34/release.sh` muss die Rechte setzen und prüfen (sonst kehrt der Fehler zurück), plus ein Test | Integrator | wrapper `fix/fk2-bau-volume` | – | live behoben, Skript offen | – |
+| B2 | Benachrichtigung auch bei „gescheitert“: Mail und Push mit ehrlichem Grund, „nichts abgebucht“ (am 18.11. ging beim Fehlschlag nichts raus) | offen | – | – | offen | A3 |
+| B3 | Marken: nicht abweisen, so nah wie Urheber- und Markenrecht zulassen (Mechanik ja; keine geschützten Namen, Figuren, Grafiken, Musik, Level), Grund vor „Ja, so bauen“ sichtbar, eigener Titel klar vom Original unterscheidbar, Prüfung des Ergebnisses auf Markennamen und Figuren. Danach die 13 Marken-Fälle aus A10 erneut messen. User-Entscheidung 18.11. | offen | – | – | offen | ersetzt die Frage a/b/c |
+| B4 | Keine Sammel-Absage `k_no_other`: immer ein konkreter Grund mit Vorschlag oder nah dran bauen. Auslöser „Snake als Motorrad und als arcade game“ → refused-model bzw. refused-brand im Log | offen | – | – | offen | B3 |
+| B5 | Kacheln: Bild muss zum Text passen („Ein Bär“ zeigte einen Pinguin, „Eichhörnchen“ einen Hasen). Prüfung auf dem Server, neutrales Bild als Rückfall, Test | offen | – | – | offen | – |
+| B6 | „Meine Aufträge“ im Profil bzw. in „Mein Regal“: Status je Auftrag (Klärung, Warteschlange, Bau mit Schritten, fertig erfüllt/fehlt, Nachbesserung n×, gemeldet, gescheitert mit Grund), Guthaben-Status, Benachrichtigung; Hinweis „1 Auftrag in Arbeit“ auf der Startseite; nur eigene Aufträge; vorerst nur für den Tester | offen | – | – | offen | A3 |
+| B7 | Login-Sackgasse: Zurück führt zu `/gate/callback` mit „missing code or state“. (a) App: Zurück darf nicht in den Login-Fluss führen. (b) Gate in CADS-Tunnel: Callback ohne code oder state leitet freundlich weiter. **(b) ist ein core-Deploy: nur mit Freigabe des Users, Vorwarnung, nicht während Antestat** | offen | – | – | offen | – |
 
 ## Meilensteine
 | Meilenstein | Ziel | Stand |
