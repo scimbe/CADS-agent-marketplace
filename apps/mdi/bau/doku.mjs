@@ -87,6 +87,12 @@ ${SZ.frames} Frames, hoechstens ${SZ.schritte} Schritte) und genau eine Erwartun
 ${ARTEN.join(", ")}. figur_bewegt braucht emoji und richtung (${Object.keys(RICHTUNGEN).join(", ")}), figur_sichtbar und
 mehr_figuren ein emoji, text_sichtbar einen Text. Figuren erkennt der Bot nur als Emoji (d.emoji): die Spielfigur der Person
 und alles, was ein Punkt nennt, als Emoji zeichnen, genau das Emoji aus dem Plan.
+Szenarien mit Reserve (sonst meldet der Bot "fehlt", obwohl das Spiel es kann):
+- jede Taste mindestens 10 Frames halten, danach eine Pause, die sicher reicht (Animation, Computerzug, Aufdecken);
+- text_sichtbar nur mit dem festen Teil des Textes, der sicher erscheint (z. B. "Züge:" statt "Züge: 1 / 24"), keine Zahlen,
+  die vom Spielverlauf abhaengen;
+- Spielende, Leben, Level: lieber die doppelte Zeit, die man selbst schaetzt.
+Ein Szenario, das nicht besteht, spielt der Bot ein zweites Mal mit doppelter Dauer, bevor der Punkt fehlt.
 
 ## Content-Policy (Server-Pruefung, harter Fehler)
 

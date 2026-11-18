@@ -2,6 +2,7 @@
 // Antworten und die Liste "So bauen wir es" (Punkte mit pruefung) – Bauauftrag und Abnahmemassstab zugleich.
 //
 //   Planer   je Punkt: machbar? Satz fuer die Person, wenn nicht; Szenario-Bot, wenn beobachtbar; Spielplan mit Zahlen
+//            (gestreamt, bis GRENZEN.maxTokensPlan); stop_reason max_tokens -> eine Runde mit Auflage "kuerzer"
 //   Bauer    Spielmodul (gestreamt, bis GRENZEN.maxTokensBau); stop_reason max_tokens -> Neubau mit Kuerze-Auflage, keine
 //            Reparatur eines abgeschnittenen Codes
 //   Pruefung Statik, Content-Policy, Bots und Szenario-Bots in der echten Sandbox (runGame, nur hier entscheidet ein Lauf)
@@ -22,7 +23,7 @@ import { kiKlasse } from "./ki-klasse.mjs";
 
 /** Gruende fuer "keine Karte" (geschlossene Liste; der Vertrag features/frei/klaerung.js kennt dieselbe) */
 export const BAU_GRUENDE = Object.freeze(["nicht_geschafft", "kein_spiel", "policy", "zeit", "kosten", "fehler", "ki_nicht_verfuegbar"]);
-export const GRENZEN = Object.freeze({ reparaturen: 3, bauzeitMs: 15 * 60 * 1000, maxTokensBau: 32000, maxTokensPlan: 8000, maxTokensAbnahme: 8000, sekunden: 60 });
+export const GRENZEN = Object.freeze({ reparaturen: 3, bauzeitMs: 15 * 60 * 1000, maxTokensBau: 32000, maxTokensPlan: 32000, maxTokensAbnahme: 8000, sekunden: 60 });
 
 const numbered = (code) => code.split("\n").map((l, i) => String(i + 1).padStart(3) + "  " + l).join("\n");
 const sha256 = (s) => createHash("sha256").update(s, "utf8").digest("hex");
@@ -73,14 +74,25 @@ export function createBauPipeline(deps) {
     return deps.llm.call({ role: rolle, model: deps.rollen[rolle], req, tag: ctx.tag + ":" + tag, ledger: ctx.ledger, signal: ctx.signal });
   }
 
+  // Planer wie Bauer: gestreamt bis GRENZEN.maxTokensPlan; eine abgeschnittene Antwort (stop_reason max_tokens) wird nicht mit
+  // gleicher Auflage wiederholt, sondern bekommt eine Runde "kuerzer" (A10-Befund 2). Scheitert der Plan, steht das im Log.
   async function planen(ctx, auftrag) {
     let note = "";
+    const runden = [];
     for (let runde = 0; runde < 2; runde++) {
       const r = await ask(ctx, "planer", auftragText(auftrag) + note, { max_tokens: GRENZEN.maxTokensPlan, schema: SCHEMA_PLAN }, "plan" + runde);
+      if (r.stop === "max_tokens") {
+        runden.push({ runde, stop: r.stop, fehler: ["abgeschnitten"] });
+        note = "\n\nDEINE LETZTE ANTWORT WAR ZU LANG UND WURDE ABGESCHNITTEN. Antworte noch einmal, vollstaendig und KUERZER: " +
+          "spielplan hoechstens 1500 Zeichen, nur feste Zahlen und Regeln, keine Wiederholungen, keine Erklaerungen.";
+        continue;
+      }
       const fehler = r.json ? planFehler(r.json, auftrag) : ["keine gueltige JSON-Antwort"];
       if (!fehler.length) return r.json;
+      runden.push({ runde, stop: r.stop, fehler });
       note = "\n\nDEINE LETZTE ANTWORT WAR UNGUELTIG: " + fehler.join("; ") + ". Antworte noch einmal, vollstaendig.";
     }
+    log({ event: "fk2-bau-plan", tag: ctx.tag, ok: false, runden });
     return null;
   }
 
@@ -169,7 +181,7 @@ export function createBauPipeline(deps) {
     }
   }
   const lieferung = (ctx, auftrag, plan, gebaut, ab, versuche) => fertig(ctx, {
-    ok: true, titel: auftrag.titel, punkte: ab.punkte, fehlt: ab.fehlt, ersetzt: ab.ersetzt, nachbessernHinweis: ab.nachbessern,
+    ok: true, titel: auftrag.titel, punkte: ab.punkte, fehlt: ab.fehlt, ersetzt: ab.ersetzt, ueberstimmt: ab.ueberstimmt, nachbessernHinweis: ab.nachbessern,
     spiel: { code: gebaut.code, sha256: sha256(gebaut.code) }, plan: { typ: plan.typ, spielplan: plan.spielplan, punkte: plan.punkte }, versuche
   });
 

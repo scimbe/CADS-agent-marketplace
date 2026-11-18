@@ -74,7 +74,7 @@ export function createWorker(o) {
     const m = meldung(job, e);
     await o.queue.ergebnis(m);
     if (e.ki) pauseBis = jetzt() + PAUSE_MS[e.ki];
-    log({ event: "fk2-bau", art: job.art, ok: e.ok, grund: e.grund || null, ki: e.ki || null, fehlt: e.ok ? e.fehlt : null, ersetzt: e.ersetzt || 0, ms: Date.now() - t0, usd: m.usd });
+    log({ event: "fk2-bau", art: job.art, ok: e.ok, grund: e.grund || null, ki: e.ki || null, fehlt: e.ok ? e.fehlt : null, ersetzt: e.ersetzt || 0, ueberstimmt: e.ueberstimmt || 0, ms: Date.now() - t0, usd: m.usd });
     return "gebaut";
   }
   return {

@@ -3,10 +3,15 @@
 //
 // Regel je Punkt (streng, nichts wird still durchgewunken):
 //   nicht machbar (Planer)           -> fehlt, Satz des Planers (gelesen)
-//   Szenario vorhanden und gueltig   -> gespielt: erfuellt nur, wenn das Szenario besteht UND die Abnahme "erfuellt" sagt;
-//                                       scheitert das Szenario, steht der feste Satz zum Grund da (kein Modelltext)
-//   kein Szenario                    -> gelesen ("nicht automatisch pruefbar"): Urteil der Abnahme aus Code, Bot-Bericht, Fotos
-//   kein Urteil der Abnahme          -> fehlt
+//   Szenario vorhanden und gueltig   -> gespielt: scheitert das Szenario, fehlt der Punkt mit dem festen Satz zum Grund (kein
+//                                       Modelltext). Besteht es, ist der Punkt erfuellt; die Abnahme kann das nur mit einem
+//                                       gueltigen Satz fuer die Person widerlegen (was im Spiel anders ist). Ein "fehlt" ohne
+//                                       solchen Satz oder ein fehlendes Urteil schlaegt das Gespielte nicht (A10: falsche
+//                                       "fehlt" bei bestandenen Szenarien); gezaehlt als ueberstimmt, nie still
+//   kein Szenario                    -> gelesen ("nicht automatisch pruefbar"): Urteil der Abnahme aus Code, Bot-Bericht, Fotos;
+//                                       ohne gueltigen Satz bleibt der Punkt offen, mit einem Satz, der nichts ueber das Spiel
+//                                       behauptet (ERSATZ.fehlt), weil nichts gespielt wurde
+//   kein Urteil der Abnahme          -> gelesen: fehlt
 // Jede Notiz ist ein Satz fuer die Person: ohne Code, Zeilen, Funktionsnamen oder Bot-Werte. Ein Satz des Modells, der das
 // nicht schafft, wird durch einen festen, ehrlichen Satz ersetzt und als ersetzt gezaehlt (ergebnis.ersetzt, Log im Worker).
 import { checkSzenario, RICHTUNGEN } from "../src/spiel/szenario.js";
@@ -40,8 +45,8 @@ const SZ_SATZ = {
 };
 /** Feste Ersatzsaetze, wenn ein Satz des Modells keine Kundensprache ist (gezaehlt, nie still) */
 const ERSATZ = {
-  de: { fehlt: "Das macht das Spiel noch nicht so, wie es hier steht.", nicht_machbar: "Das kann diese Art Spiel leider nicht." },
-  en: { fehlt: "The game does not do this the way it says here yet.", nicht_machbar: "This kind of game cannot do that, sorry." }
+  de: { fehlt: "Ob das Spiel das so macht, konnten wir nicht sicher feststellen.", nicht_machbar: "Das kann diese Art Spiel leider nicht." },
+  en: { fehlt: "We could not tell for sure whether the game does this.", nicht_machbar: "This kind of game cannot do that, sorry." }
 };
 
 // Merkmale von Technik statt Kundensprache: Code-Zeichen, Zeilen-/Funktionsangaben, Bot-Werte, Fachwoerter
@@ -82,11 +87,11 @@ export function szenarioAusPlan(id, flach) {
  * @param {{punkte: Array<{id:string, machbar:boolean, kunde:string, szenario:object|null}>}} plan  (szenario: mdi-szenario/1 oder null)
  * @param {Array<{id:string, ok:boolean, grund:string|null}>} gespielt  report.szenarien aus runGame
  * @param {{punkte: Array<{id:string, urteil:string, kunde:string}>}|null} urteil  Abnahme des Modells
- * @returns {{punkte: Array<{id:string, erfuellt:boolean, notiz:string, geprueft:string}>, ersetzt:number, fehlt:number}}
+ * @returns {{punkte: Array<{id:string, erfuellt:boolean, notiz:string, geprueft:string}>, ersetzt:number, ueberstimmt:number, fehlt:number}}
  */
 export function bewerte(auftrag, plan, gespielt, urteil) {
   const L = auftrag.lang === "en" ? "en" : "de";
-  let ersetzt = 0;
+  let ersetzt = 0, ueberstimmt = 0;
   const kunde = (t, art) => { if (istKundensatz(t)) return t.trim(); ersetzt++; return ERSATZ[L][art]; };
   const punkte = auftrag.punkte.map((p) => {
     const pl = plan.punkte.find((x) => x.id === p.id);
@@ -96,9 +101,12 @@ export function bewerte(auftrag, plan, gespielt, urteil) {
     if (pl.szenario) {
       const s = gespielt.find((x) => x.id === p.id);
       if (!s || !s.ok) return { id: p.id, erfuellt: false, notiz: s ? szenarioSatz(pl.szenario, s, L) : SZ_SATZ[L].fehler, geprueft: "gespielt" };
-      return { id: p.id, erfuellt: modellOk, notiz: modellOk ? "" : kunde(u ? u.kunde : "", "fehlt"), geprueft: "gespielt" };
+      if (modellOk) return { id: p.id, erfuellt: true, notiz: "", geprueft: "gespielt" };
+      if (u && istKundensatz(u.kunde)) return { id: p.id, erfuellt: false, notiz: u.kunde.trim(), geprueft: "gespielt" };
+      ueberstimmt++;
+      return { id: p.id, erfuellt: true, notiz: "", geprueft: "gespielt" };
     }
     return { id: p.id, erfuellt: modellOk, notiz: modellOk ? "" : kunde(u ? u.kunde : "", "fehlt"), geprueft: "gelesen" };
   });
-  return { punkte, ersetzt, fehlt: punkte.filter((x) => !x.erfuellt).length };
+  return { punkte, ersetzt, ueberstimmt, fehlt: punkte.filter((x) => !x.erfuellt).length };
 }

@@ -15,11 +15,15 @@ export const ARTEN = Object.freeze(["punkte_steigen", "leben_sinken", "spiel_end
 export const RICHTUNGEN = Object.freeze({ links: [-1, 0], rechts: [1, 0], hoch: [0, -1], runter: [0, 1] });
 /** Grenzen: je Pruefung hoechstens max Szenarien, je Szenario hoechstens schritte Schritte und frames Frames */
 export const SZ = Object.freeze({ max: 8, schritte: 6, frames: 1200, bewegtPx: 8, textLen: 40 });
-/** Obergrenze der Spielschritte aller Szenarien einer Pruefung (Grundlage der Fristen in spiel/fristen.js) */
-export const SZ_MAX_STEPS = SZ.max * SZ.frames;
+/** Ein nicht erreichtes Szenario bekommt einen zweiten Anlauf mit dieser Dauer je Schritt (A10: zu knappe Szenarien) */
+export const SZ_ZWEITER = 2;
+/** Obergrenze der Spielschritte aller Szenarien einer Pruefung inkl. zweitem Anlauf (Grundlage der Fristen in spiel/fristen.js) */
+export const SZ_MAX_STEPS = SZ.max * SZ.frames * (1 + SZ_ZWEITER);
 /** Gruende eines nicht bestandenen Szenarios (geschlossene Liste; die Kundensaetze dazu stehen in bau/kundensprache.mjs) */
 export const GRUENDE = Object.freeze(["nicht_erreicht", "figur_fehlt", "steuerung_fehlt", "fehler"]);
 
+/** Text, wie ihn eine Person liest: Gross/klein und Leerraum egal */
+const norm = (t) => String(t).toLowerCase().replace(/\s+/g, " ").trim();
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const exact = (o, keys) => Object.keys(o).every((k) => keys.includes(k));
 
@@ -61,33 +65,44 @@ function sicht(ops) {
   const emojis = new Map(), texte = [];
   for (const op of ops) {
     if (op[0] === "emoji") { const l = emojis.get(op[1]) || []; l.push([op[2], op[3]]); emojis.set(op[1], l); }
-    else if (op[0] === "text") texte.push(String(op[1]).toLowerCase());
+    else if (op[0] === "text") texte.push(norm(op[1]));
   }
   return { emojis, texte };
 }
 const mitte = (pts) => [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length];
 
 /**
- * Spielt ein Szenario auf einem frischen Spiel.
+ * Spielt ein Szenario auf einem frischen Spiel; nicht erreicht -> ein zweiter Anlauf mit doppelter Dauer (SZ_ZWEITER).
  * @param {object} mod  Spielmodul
  * @param {object} sz   geprueftes Szenario (checkSzenario)
  * @param {{seed:string, tick?:() => void}} o
  * @returns {{id:string, ok:boolean, grund:string|null, wert:object}}
  */
 export function runSzenario(mod, sz, o) {
+  const r = anlauf(mod, sz, o, 1, "");
+  if (r.ok || (r.grund !== "nicht_erreicht" && r.grund !== "figur_fehlt")) return r;
+  // zweiter Anlauf: jede Eingabe doppelt so lange, neue Zufallsfolge. Erst wenn auch er scheitert, fehlt der Punkt.
+  const r2 = anlauf(mod, sz, o, SZ_ZWEITER, "|2");
+  return { ...r2, wert: { ...r2.wert, anlauf: 2 } };
+}
+
+/** Ein Anlauf auf einem frischen Spiel; dauer streckt jeden Schritt. */
+function anlauf(mod, sz, o, dauer, salz) {
   const tick = o.tick || (() => {});
   const e = sz.erwartung, out = (ok, grund, wert = {}) => ({ id: sz.id, ok, grund: ok ? null : grund, wert });
   try {
-    const game = createGame(mod, { seed: o.seed + "|sz|" + sz.id });
+    const game = createGame(mod, { seed: o.seed + "|sz|" + sz.id + salz });
     for (const s of sz.schritte) for (const c of s.halte) if (!game.meta.controls.includes(c)) return out(false, "steuerung_fehlt", { steuerung: c });
     const s0 = game.status(), v0 = sicht(game.draw());
     let over = false, won = false, maxCount = 0, textSeen = false, last = v0, frame = 0;
-    const want = e.text ? e.text.toLowerCase() : null;
+    const want = e.text ? norm(e.text) : null;
     if (want && v0.texte.some((t) => t.includes(want))) textSeen = true;
     for (const s of sz.schritte) {
       const a = { dirs: s.halte.filter((c) => c !== "fire"), fire: s.halte.includes("fire") };
-      for (let k = 0; k < s.frames; k++) {
-        game.step(press(a, frame)); frame++; tick();
+      // Feuer zaehlt ab dem ersten Frame des Schritts (press drueckt jeden zweiten Frame ab k = 0): ein kurzer Feuer-Schritt
+      // drueckt sicher, egal wann er beginnt (A10: ein 1-Frame-Feuer auf ungeradem Frame drueckte nie)
+      for (let k = 0; k < s.frames * dauer; k++) {
+        game.step(press(a, k)); frame++; tick();
         const st = game.status();
         if (st.over) { over = true; won = st.won; break; }
         // jeder 10. Frame wird angeschaut (so oft schaut auch ein Mensch hin); die Anzahl fuer mehr_figuren zaehlt ueberall

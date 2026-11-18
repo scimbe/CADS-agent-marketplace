@@ -25,7 +25,7 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "fk2-bau-"));
 const AUFTRAG = { id: "A".repeat(22), lang: "de", satz: "Boote abwehren", titel: "Segelabwehr", verstehe: "", nicht: [], fragen: [],
   punkte: [{ id: "p1", text: "Du steuerst ein Boot", pruefung: "Links bewegt das Boot" }, { id: "p2", text: "Fotos von Oma", pruefung: "Fotos sind zu sehen" }, { id: "p3", text: "Es macht Pling", pruefung: "Ton beim Treffer" }] };
 
-test("Abnahme je Punkt: gespielt schlaegt gelesen, nicht machbar und fehlende Urteile sind fehlt, Saetze ohne Technik", () => {
+test("Abnahme je Punkt: gespielt schlaegt gelesen, nicht machbar fehlt, bestandenes Szenario widerlegt nur ein gueltiger Satz, Saetze ohne Technik", () => {
   const sz = szenarioAusPlan("p1", { pruefbar: true, schritte: [{ halte: ["left"], frames: 60 }], art: "figur_bewegt", emoji: "⛵", richtung: "links", text: "" }).szenario;
   assert.deepEqual(sz, { id: "p1", schritte: [{ halte: ["left"], frames: 60 }], erwartung: { art: "figur_bewegt", emoji: "⛵", richtung: "links" } });
   assert.match(szenarioAusPlan("p1", { pruefbar: true, schritte: [], art: "figur_bewegt", emoji: "⛵", richtung: "links", text: "" }).ungueltig, /schritte/);
@@ -37,12 +37,17 @@ test("Abnahme je Punkt: gespielt schlaegt gelesen, nicht machbar und fehlende Ur
   assert.equal(b.punkte[0].notiz, "Beim Ausprobieren hat sich ⛵ nicht nach links bewegt.");
   assert.equal(b.punkte[1].notiz, "Eigene Fotos gehen in diesem Spiel nicht.");
   assert.equal(b.fehlt, 2);
-  // Szenario besteht, Modell sagt fehlt mit Code-Zeile: fehlt, Satz ersetzt und gezaehlt
+  // Szenario besteht, Modell sagt fehlt mit Code-Zeile: das Gespielte gilt (ueberstimmt, gezaehlt); gelesen ohne Satz bleibt
+  // offen, mit einem Satz, der nichts ueber das Spiel behauptet (A10: falsche "fehlt")
   b = bewerte(AUFTRAG, plan, [{ id: "p1", ok: true, grund: null }], { punkte: [{ id: "p1", urteil: "fehlt", kunde: "In update() Zeile 12 fehlt s.boot.x" }] });
-  assert.equal(b.punkte[0].erfuellt, false); assert.equal(b.punkte[0].notiz, "Das macht das Spiel noch nicht so, wie es hier steht."); assert.equal(b.ersetzt, 2, "p1 mit Code-Zeile und p3 ohne Satz");
-  assert.equal(b.punkte[2].erfuellt, false, "ohne Urteil der Abnahme fehlt ein gelesener Punkt");
+  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[0].notiz, b.ueberstimmt], [true, "", 1]);
+  assert.equal(b.ersetzt, 1, "p3 ohne Satz");
+  assert.deepEqual([b.punkte[2].erfuellt, b.punkte[2].notiz], [false, "Ob das Spiel das so macht, konnten wir nicht sicher feststellen."], "ohne Urteil der Abnahme ist ein gelesener Punkt offen");
+  // Szenario besteht, Modell sagt fehlt mit gueltigem Satz: fehlt mit diesem Satz (das Szenario prueft nicht jedes Detail)
+  b = bewerte(AUFTRAG, plan, [{ id: "p1", ok: true, grund: null }], { punkte: [{ id: "p1", urteil: "fehlt", kunde: "Das Boot faehrt nur nach links, nicht nach rechts." }] });
+  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[0].notiz, b.ueberstimmt], [false, "Das Boot faehrt nur nach links, nicht nach rechts.", 0]);
   b = bewerte(AUFTRAG, plan, [{ id: "p1", ok: true, grund: null }], null);
-  assert.equal(b.punkte[0].erfuellt, false, "ohne gueltiges Urteil der Abnahme ist auch ein gespielter Punkt nicht erfuellt");
+  assert.deepEqual([b.punkte[0].erfuellt, b.punkte[2].erfuellt, b.ueberstimmt], [true, false, 1], "ohne Urteil: gespielt und bestanden gilt, gelesen bleibt offen");
   for (const t of ["Beim Treffer macht es Pling.", "Die Boote werden noch nicht schneller."]) assert.ok(istKundensatz(t), t);
   for (const t of ["Zeile 14: g.addScore fehlt", "Bot greedy hat 0 Punkte", "update(s) setzt nichts", "p95 4.2 ms", "Gegner wird getötet", "x".repeat(161)]) assert.ok(!istKundensatz(t), t);
   assert.equal(szenarioSatz({ erwartung: { art: "punkte_steigen" } }, { grund: "steuerung_fehlt" }, "en"), "The game has no button for this.");
@@ -63,7 +68,7 @@ test("Konfiguration: Rollen A als Standard, Modell je Rolle umschaltbar, Unbekan
   assert.throws(() => konfig({ ...env, MDI_BAU_TAGESGRENZE_USD: "50" }), /nur senken/);
   assert.equal(konfig({ MDI_BAU_QUEUE_URL: "http://w:1", MDI_BAU_PRUEF_URL: "http://p:2", MDI_BAU_TOKEN_FILE: "t", MDI_BAU_MODELL_DOUBLE: "1" }).double, true);
   assert.ok(Object.isFrozen(KOSTEN) && KOSTEN.jeAuftragUsd === 0.25 && KOSTEN.jeTagUsd === 5);
-  assert.equal(GRENZEN.bauzeitMs, 15 * 60 * 1000); assert.ok(GRENZEN.maxTokensBau >= 32000);
+  assert.equal(GRENZEN.bauzeitMs, 15 * 60 * 1000); assert.ok(GRENZEN.maxTokensBau >= 32000); assert.ok(GRENZEN.maxTokensPlan >= 32000, "Planer wie Bauer (A10-Befund 2)");
 });
 
 test("Kosten: Auftragsgrenze unter Tagesgrenze, je UTC-Tag eine Datei; nichts geht ueber eine Grenze raus", async () => {
@@ -117,6 +122,39 @@ test("Pipeline mit Modell-Double (ohne Browser): Plan nur mit den Punkten des Au
   assert.ok(seen.filter((r) => /^Rolle: BAUER/.test(r.system[1].text)).slice(1).every((r) => /KOMPAKT/.test(r.messages[0].content) && !/Bisheriger Code/.test(r.messages[0].content)));
   assert.ok(seen.every((r) => r.max_tokens <= 32000) && seen.some((r) => r.max_tokens === 32000));
   for (const g of ["fehler", "kein_spiel", "zeit", "kosten", "nicht_geschafft"]) assert.ok(BAU_GRUENDE.includes(g));
+});
+
+test("Planer: 32k gestreamt; abgeschnitten -> eine Runde \"kuerzer\" statt gleicher Wiederholung; scheitert er, steht es im Log", async () => {
+  const pruef = { async pruefe() { return { ok: true, policy: [], report: { ok: true, controls: ["left"], checks: {}, bots: {}, szenarien: [] } }; }, async fotos() { return { shots: [], status: null, errs: [] }; } };
+  const ledger = () => createLedger({ cap: 1 });
+  const ac = new AbortController();
+  const istPlaner = (req) => /^Rolle: PLANER/.test(req.system[1].text);
+  // erste Planer-Antwort abgeschnitten (halbes JSON), zweite vollstaendig
+  const planer = [];
+  let n = 0;
+  const fake = async (req, o) => {
+    if (!istPlaner(req)) return modellDouble()(req, o);
+    planer.push(req);
+    if (n++ === 0) return { stop_reason: "max_tokens", content: [{ type: "text", text: "{\"entscheidung\":\"bauen\",\"spielplan\":\"Typ echtzeit, lives 3, ..." }], usage: { output_tokens: 32000 } };
+    return modellDouble()(req, o);
+  };
+  const logs = [];
+  const p = createBauPipeline({ llm: createLlm({ ledger: ledger(), fake }), pruef, rollen: ROLLEN_STANDARD, log: (x) => logs.push(x) });
+  const e = await p.bauen(AUFTRAG, { signal: ac.signal, ledger: ledger() });
+  assert.equal(e.ok, true, "zweiter Planer-Versuch liefert den Plan");
+  assert.equal(planer.length, 2);
+  assert.ok(planer.every((r) => r.max_tokens === 32000), "Planer-Budget wie Bauer");
+  assert.match(planer[1].messages[0].content, /ABGESCHNITTEN[\s\S]*KUERZER/);
+  assert.doesNotMatch(planer[1].messages[0].content, /UNGUELTIG/, "kein Wiederholen mit gleicher Auflage");
+  assert.equal(logs.filter((l) => l.event === "fk2-bau-plan").length, 0);
+  // immer abgeschnitten: zwei Versuche, dann "fehler" mit Logzeile (heute ohne Logzeile, A10-Befund 2)
+  const immer = async (req, o) => istPlaner(req) ? { stop_reason: "max_tokens", content: [{ type: "text", text: "{" }], usage: {} } : modellDouble()(req, o);
+  const logs2 = [];
+  const p2 = createBauPipeline({ llm: createLlm({ ledger: ledger(), fake: immer }), pruef, rollen: ROLLEN_STANDARD, log: (x) => logs2.push(x) });
+  const e2 = await p2.bauen(AUFTRAG, { signal: ac.signal, ledger: ledger() });
+  assert.equal(e2.grund, "fehler");
+  const l = logs2.find((x) => x.event === "fk2-bau-plan");
+  assert.deepEqual(l && l.runden.map((r) => [r.runde, r.stop, r.fehler[0]]), [[0, "max_tokens", "abgeschnitten"], [1, "max_tokens", "abgeschnitten"]]);
 });
 
 test("Worker: holt, baut mit Zeit- und Kostengrenze, meldet ohne Belege; Tagesgrenze haelt an; Token aus Datei", async () => {
