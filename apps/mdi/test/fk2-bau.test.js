@@ -326,3 +326,31 @@ test("Nit 8: KI-Fehler in der Abnahme -> einmal wiederholen, bevor das fertige S
   assert.equal(typeof m.ueberstimmt, "number");
   assert.deepEqual(m.szenarien, [{ id: "p1", ok: true, grund: null, anlauf: 2, kontrolle: false }]);
 });
+
+test("B1: Schreibtest beim Start – ein nicht beschreibbarer Kostenbuch-Ordner faellt sofort auf, der Worker holt nichts und endet laut", { skip: process.getuid && process.getuid() === 0 ? "als root greift chmod nicht" : false }, async () => {
+  const dir = tmp();
+  createTagesbuch({ cap: 5, dir });
+  assert.deepEqual(fs.readdirSync(dir), [], "der Schreibtest hinterlaesst nichts");
+  fs.chmodSync(dir, 0o555);   // wie das root-Volume am 18.11.
+  try {
+    assert.throws(() => createTagesbuch({ cap: 5, dir }), (e) => e.code === "EACCES" && e.message.includes("Kostenbuch nicht beschreibbar: " + dir));
+    const { spawn } = await import("node:child_process");
+    const holen = [];
+    const srv = http.createServer((q, r) => { holen.push(q.url); r.writeHead(204).end(); });
+    await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+    const tok = path.join(tmp(), "token"); fs.writeFileSync(tok, "t".repeat(32));
+    const env = { ...process.env, MDI_BAU_MODELL_DOUBLE: "1", MDI_BAU_QUEUE_URL: "http://127.0.0.1:" + srv.address().port, MDI_BAU_PRUEF_URL: "http://127.0.0.1:9", MDI_BAU_TOKEN_FILE: tok, MDI_BAU_STATE_DIR: dir };
+    // asynchron, damit der Warteschlangen-Double antworten koennte, falls der Worker doch holt
+    const r = await new Promise((ok) => {
+      const c = spawn(process.execPath, ["bau/main.mjs"], { env }); let stdout = "", stderr = "";
+      const t = setTimeout(() => c.kill(), 20000);
+      c.stdout.on("data", (d) => { stdout += d; }); c.stderr.on("data", (d) => { stderr += d; });
+      c.on("close", (status) => { clearTimeout(t); ok({ status, stdout, stderr }); });
+    });
+    srv.close();
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    const zeile = JSON.parse(r.stdout.trim().split("\n").find((l) => l.includes("fk2-bau-start")));
+    assert.deepEqual([zeile.ok, zeile.why, zeile.dir, zeile.code], [false, "state-nicht-beschreibbar", dir, "EACCES"]);
+    assert.deepEqual(holen, [], "kein Auftrag geholt");
+  } finally { fs.chmodSync(dir, 0o755); }
+});

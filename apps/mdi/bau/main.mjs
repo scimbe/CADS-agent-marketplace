@@ -14,7 +14,11 @@ import { modellDouble } from "./doppel.mjs";
 
 const c = konfig();
 const log = (o) => console.log(JSON.stringify({ t: new Date().toISOString(), ...o }));
-const tagesbuch = createTagesbuch({ cap: c.tagesgrenze, dir: c.stateDir });
+// Schreibtest beim Start (createTagesbuch): ist der Ordner nicht beschreibbar, holt der Worker keinen Auftrag, sagt es laut im
+// Log und endet mit 1 (Docker startet ihn mit Wartezeit neu; der Wrapper meldet auf /api/status bau.grund "worker-still")
+let tagesbuch;
+try { tagesbuch = createTagesbuch({ cap: c.tagesgrenze, dir: c.stateDir }); }
+catch (e) { log({ event: "fk2-bau-start", ok: false, why: "state-nicht-beschreibbar", dir: c.stateDir, code: e.code, note: "Eigentuemer des Volumes pruefen (Wrapper-Repo deploy/fk2-p34/release.sh setzt ihn)" }); process.exit(1); }
 // Aufruf-Protokoll ohne Inhalte: Rolle, Modell, Tokens, Kosten
 const llm = createLlm({ keyFile: c.keyFile, proxy: c.proxy, ledger: tagesbuch(), log: (row) => log({ event: "fk2-llm", ...row }), ...(c.double ? { fake: modellDouble() } : {}) });
 // Chromium und der fremde Code laufen NICHT hier, sondern im Pruef-Container ohne Key, Token und Netz (Review S1)
