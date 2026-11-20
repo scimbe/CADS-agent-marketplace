@@ -1,0 +1,16 @@
+{"role":"planer","model":"claude-haiku-5-5","tag":"A-P01-L1:plan","stop":"end_turn","ms":11498,"in":886,"out":2104,"cacheRead":0,"cacheWrite":9019,"usd":0.0022679749999999998,"spent":0.0022679749999999998}
+{"role":"planer","model":"claude-haiku-5-5","tag":"A-P12-L1:plan","stop":"end_turn","ms":13761,"in":890,"out":2422,"cacheRead":0,"cacheWrite":9019,"usd":0.002427375,"spent":0.004695349999999999}
+{"role":"bauer","model":"claude-haiku-5-5","tag":"A-P01-L1:bau","stop":"end_turn","ms":9600,"in":1257,"out":2597,"cacheRead":0,"cacheWrite":8497,"usd":0.0024863249999999997,"spent":0.0071816749999999985}
+{"role":"bauer","model":"claude-haiku-5-5","tag":"A-P12-L1:bau","stop":"end_turn","ms":22927,"in":1379,"out":5576,"cacheRead":8497,"cacheWrite":0,"usd":0.0030108699999999997,"spent":0.010192544999999997}
+{"role":"abnahme","model":"claude-haiku-5-5","tag":"A-P01-L1:abnahme","stop":"end_turn","ms":9609,"in":3700,"out":1689,"cacheRead":0,"cacheWrite":8867,"usd":0.002322875,"spent":0.012515419999999998}
+{"role":"planer","model":"claude-sonnet-5-5","tag":"C-P01-L1:plan","stop":"end_turn","ms":11769,"in":886,"out":1563,"cacheRead":0,"cacheWrite":9019,"usd":0.0399495,"spent":0.05246492}
+{"role":"abnahme","model":"claude-haiku-5-5","tag":"A-P12-L1:abnahme","stop":"end_turn","ms":11268,"in":3615,"out":2168,"cacheRead":8867,"cacheWrite":0,"usd":0.00153417,"spent":0.05399909}
+{"role":"bauer","model":"claude-haiku-5-5","tag":"A-P12-L1:nb1:bau","stop":"end_turn","ms":12745,"in":3609,"out":3420,"cacheRead":8497,"cacheWrite":0,"usd":0.00215587,"spent":0.05615496}
+{"role":"bauer","model":"claude-haiku-5-5","tag":"C-P01-L1:bau","stop":"end_turn","ms":20369,"in":1328,"out":5206,"cacheRead":8497,"cacheWrite":0,"usd":0.00282077,"spent":0.05897573}
+{"role":"abnahme","model":"claude-haiku-5-5","tag":"A-P12-L1:nb1:abnahme","stop":"end_turn","ms":9141,"in":4118,"out":1841,"cacheRead":8867,"cacheWrite":0,"usd":0.0014209700000000001,"spent":0.0603967}
+{"role":"abnahme","model":"claude-sonnet-5-5","tag":"C-P01-L1:abnahme","stop":"end_turn","ms":6495,"in":3800,"out":715,"cacheRead":0,"cacheWrite":8867,"usd":0.0369175,"spent":0.09731419999999999}
+{"role":"planer","model":"claude-sonnet-5-5","tag":"C-P12-L1:plan","stop":"end_turn","ms":14188,"in":890,"out":1708,"cacheRead":9019,"cacheWrite":0,"usd":0.019761900000000002,"spent":0.11707609999999999}
+{"role":"bauer","model":"claude-haiku-5-5","tag":"C-P12-L1:bau","stop":"end_turn","ms":20109,"in":1448,"out":4953,"cacheRead":8497,"cacheWrite":0,"usd":0.0027062699999999998,"spent":0.11978236999999999}
+{"role":"abnahme","model":"claude-sonnet-5-5","tag":"C-P12-L1:abnahme","stop":"end_turn","ms":5354,"in":3565,"out":599,"cacheRead":8867,"cacheWrite":0,"usd":0.0140067,"spent":0.13378906999999998}
+{"role":"bauer","model":"claude-haiku-5-5","tag":"C-P12-L1:nb1:bau","stop":"end_turn","ms":11216,"in":3759,"out":3024,"cacheRead":8497,"cacheWrite":0,"usd":0.0019728700000000003,"spent":0.13576193999999997}
+{"role":"abnahme","model":"claude-sonnet-5-5","tag":"C-P12-L1:nb1:abnahme","stop":"end_turn","ms":4787,"in":3707,"out":450,"cacheRead":8867,"cacheWrite":0,"usd":0.0128007,"spent":0.14856263999999997}

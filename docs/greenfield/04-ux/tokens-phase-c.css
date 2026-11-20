@@ -1,0 +1,309 @@
+/* =====================================================================
+   My Daily Idea – Design-System Phase C (Vorschlag für src/ui/tokens.css)
+   Stil: Papierkalender + Meme. Dicht, lebendig, ohne Überlappung.
+   Teil 1: Tokens · Teil 2: Bausteine · Teil 3: nur für die Canvas (Motive)
+   Schriften: Anton (Titel, Zahlen) + Atkinson Hyperlegible Next (alle Sätze)
+   ===================================================================== */
+
+/* ---------- Teil 1: Tokens ---------- */
+:root {
+  /* Grundfarben (freigegebene Canvas-Tokens, Kontrast geprüft) */
+  --ink: #17140F;          /* Tinte: Text, Rahmen, harte Schatten */
+  --paper: #FBF5DD;        /* Creme: Fläche der App */
+  --sheet: #FFFDF5;        /* Kalenderblatt */
+  --gelb: #F9D84A;         /* Marke, Kopfzeile, Auswahl. Tinte darauf 13,1:1 */
+  --gelb-hell: #FFF0A8;
+  --rot: #B3321F;          /* Text-Rot: 5,7:1 auf Creme, nie auf Gelb */
+  --signal: #FF3B1D;       /* Schattenkante, Plakette, Fläche. Tinte darauf 5,2:1 */
+  --muted: #5C5444;        /* Nebentext: 6,8:1 auf Creme */
+  --line: #17140F;
+  --ok: #12753C;           /* Erfolg als Text 5,6:1 auf Creme */
+  --stage: #0E0D0B;        /* Bühne für Echtzeitspiele */
+  --on-stage: #FBF5DD;
+
+  /* 9 Familien: Fläche + Schriftfarbe darauf (alle >= 4,5:1) */
+  --fam-gruss: #FF6FAE;    --on-gruss: #17140F;    /* Grüßen & Schenken   7,1 */
+  --fam-planen: #3B8CFF;   --on-planen: #17140F;   /* Planen & Organisieren 5,6 */
+  --fam-kennen: #FFA41B;   --on-kennen: #17140F;   /* Kennen & Raten      9,3 */
+  --fam-bluff: #7A3BFF;    --on-bluff: #FFFFFF;    /* Bluff & Taktik      5,4 */
+  --fam-kreativ: #17B3A3;  --on-kreativ: #17140F;  /* Wort & Kreativ      7,0 */
+  --fam-ort: #2DB35E;      --on-ort: #17140F;      /* Vor Ort, ein Handy  6,8 */
+  --fam-geschick: #FF3B1D; --on-geschick: #17140F; /* Geschick            5,2 */
+  --fam-tisch: #0F5C3A;    --on-tisch: #FFFFFF;    /* Kartentisch         8,0 */
+  --fam-raetsel: #26305F;  --on-raetsel: #FFFFFF;  /* Rätsel & Geheim    12,6 */
+  /* quer: Eigene Karte = Gelb mit Tinte-Streifen */
+
+  --scale: 1;
+  --font-display: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --font-text: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Maße */
+  --tap: 48px;             /* kleinstes Ziel (WCAG 2.5.5 AAA 44 + Luft) */
+  --btn-main: 68px;        /* Hauptknopf */
+  --btn-2: 56px;           /* Nebenknopf */
+  --answer: 64px;          /* Antwortknöpfe im Spiel */
+  --r-sheet: 6px; --r-tile: 12px; --r-btn: 16px; --r-card: 22px; --r-pill: 999px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --border: 3px solid var(--ink);
+  --shadow: 4px 4px 0 var(--ink);
+  --shadow-l: 6px 6px 0 var(--ink);
+  --shadow-btn: 0 6px 0 var(--signal);
+
+  /* Bewegung */
+  --m-fast: 120ms; --m-mid: 220ms; --m-slow: 420ms;
+  --ease-stamp: cubic-bezier(.2, 1.6, .4, 1);
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+}
+
+/* Typografie: 3 Textgrößen, Titel nie unter 14 px. Die Größen werden überall dort neu
+   berechnet, wo „Mein Stil“ die Skala setzt (Custom Properties erben sonst den Wert von :root). */
+:root, [data-schrift] {
+  --t-s: calc(15px * var(--scale));  /* Metadaten, Plaketten, Hinweise */
+  --t-m: calc(18px * var(--scale));  /* jeder Satz, Knöpfe */
+  --t-l: calc(22px * var(--scale));  /* Fragen im Spiel, Absender */
+  --d-s: calc(22px * var(--scale));  /* Anton: Kacheltitel (Overlay) */
+  --d-m: calc(30px * var(--scale));  /* Anton: Seitentitel, Hauptknopf */
+  --d-l: calc(44px * var(--scale));  /* Anton: Kartentitel groß */
+  --d-xl: calc(76px * var(--scale)); /* Anton: Datum */
+}
+[data-schrift="normal"] { --scale: 1; }
+[data-schrift="gross"] { --scale: 1.2; }
+[data-schrift="sehr-gross"] { --scale: 1.4; }
+
+/* ---------- Teil 2: Bausteine ---------- */
+.app { background: var(--paper); color: var(--ink); font-family: var(--font-text); font-size: var(--t-m); line-height: 1.35; box-sizing: border-box; position: relative; }
+/* Nur die Canvas schneidet am Artboard ab; in der App scrollt die Seite, nichts wird abgeschnitten. */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+:where(.app) *, :where(.app) *::before, :where(.app) *::after { box-sizing: border-box; }
+:where(.app) :where(button, input, a) { font-family: inherit; color: inherit; }
+.display { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; letter-spacing: .01em; line-height: 1.02; margin: 0; text-wrap: balance; }
+.t-s { font-size: var(--t-s); } .t-m { font-size: var(--t-m); } .t-l { font-size: var(--t-l); }
+.muted { color: var(--muted); }
+.b { font-weight: 700; }
+p { margin: 0; }
+
+/* Kopfzeile */
+.top { min-height: 60px; background: var(--gelb); border-bottom: var(--border); display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; }
+.brand { font-family: var(--font-display); font-size: calc(26px * var(--scale)); line-height: 1; transform: rotate(-1.5deg); white-space: nowrap; text-decoration: none; }
+.top .grow { flex: 1; }
+.top h1 { font-family: var(--font-display); font-weight: 400; font-size: calc(24px * var(--scale)); margin: 0; text-transform: uppercase; flex: 1; line-height: 1; }
+.iconbtn { min-width: var(--tap); min-height: var(--tap); height: auto; border: 0; background: transparent; border-radius: var(--r-btn); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; font-size: calc(14px * var(--scale)); font-weight: 700; color: inherit; white-space: nowrap; line-height: 1.05; padding: 2px 6px; cursor: pointer; text-decoration: none; }
+.iconbtn svg { width: 24px; height: 24px; }
+.iconbtn.box { border: var(--border); background: var(--sheet); color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.avatar { width: 40px; height: 40px; border-radius: 50%; border: var(--border); background: var(--fam-kreativ); color: var(--ink); display: grid; place-items: center; font-family: var(--font-text); font-weight: 800; font-size: 20px; flex: none; }
+
+/* Knöpfe */
+.btn-main { min-height: var(--btn-main); height: auto; padding-block: 8px; line-height: 1.05; text-align: center; width: 100%; border: 0; border-radius: var(--r-btn); background: var(--ink); color: var(--gelb); font-family: var(--font-display); font-size: var(--d-m); text-transform: uppercase; letter-spacing: .02em; box-shadow: var(--shadow-btn); display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; text-decoration: none; padding: 0 16px; transition: transform var(--m-fast) var(--ease-out), box-shadow var(--m-fast); }
+.btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--signal); color: var(--gelb); }
+.btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--signal); }
+.btn-main svg { width: 26px; height: 26px; }
+.btn-main.alt { background: var(--signal); color: var(--ink); box-shadow: 0 6px 0 var(--ink); }
+.btn-main.wait { border: 3px dashed var(--ink); background: var(--sheet); color: var(--ink); box-shadow: none; }
+.btn-2 { min-height: var(--btn-2); border: var(--border); border-radius: var(--r-btn); background: var(--sheet); color: var(--ink); font-size: var(--t-m); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; box-shadow: var(--shadow); cursor: pointer; text-decoration: none; text-align: center; line-height: 1.1; }
+.btn-2 svg { width: 22px; height: 22px; flex: none; }
+.btn-2.gelb { background: var(--gelb); color: #17140F; }
+.btn-2.ink { background: var(--ink); color: var(--paper); }
+.btn-2.quiet { box-shadow: none; border-width: 2px; min-height: var(--tap); }
+.btn-2.danger { color: var(--rot); }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.row21 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.link { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; background: none; border: 0; padding: 0; cursor: pointer; font-size: var(--t-m); min-height: var(--tap); display: inline-flex; align-items: center; gap: 6px; }
+.noch-offen { font-size: var(--t-s); font-weight: 700; text-align: center; }
+
+/* Fokus und Auswahl */
+.app :focus-visible, .focus { outline: 3px solid var(--ink); outline-offset: 3px; box-shadow: 0 0 0 9px var(--gelb) !important; }
+.chip { min-height: var(--tap); border: var(--border); border-radius: var(--r-pill); background: var(--sheet); color: var(--ink); font-weight: 700; font-size: var(--t-s); padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+/* Auswahl nie nur über Farbe: invertiert (Gelb auf Tinte, 13:1) + Häkchen */
+.chip[aria-pressed="true"], .chip.on { background: var(--ink); color: var(--gelb); }
+.chip[aria-pressed="true"]::before, .chip.on::before { content: "✓"; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; padding: 12px; margin: -12px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: var(--border); border-radius: var(--r-btn); background: var(--sheet); color: var(--ink); }
+.seg > * { min-height: var(--tap); border: 0; border-left: var(--border); background: transparent; font-weight: 700; font-size: var(--t-s); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 6px; cursor: pointer; }
+.seg > *:first-child { border-left: 0; border-radius: 12px 0 0 12px; }
+.seg > *:last-child { border-radius: 0 12px 12px 0; }
+.seg > [aria-pressed="true"], .seg > [aria-selected="true"] { background: var(--ink); color: var(--gelb); }
+.seg > [aria-pressed="true"]::before, .seg > [aria-selected="true"]::before { content: "✓"; }
+.seg > :focus-visible { position: relative; z-index: 1; }
+
+/* Felder */
+.field { display: flex; align-items: center; gap: 8px; min-height: 56px; border: var(--border); border-radius: var(--r-btn); background: var(--sheet); padding: 0 6px 0 14px; }
+.field input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: var(--t-m); height: 50px; outline: none; }
+.field input::placeholder { color: var(--muted); }
+.field .go { width: 44px; height: 44px; border-radius: 12px; border: 0; background: var(--ink); color: var(--gelb); display: grid; place-items: center; }
+.label { font-weight: 700; font-size: var(--t-s); display: block; margin-bottom: 6px; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px; padding: 0 12px; border: 0; background: transparent; text-align: left; font-size: var(--t-m); cursor: pointer; color: var(--ink); }
+.switch .state { font-weight: 800; font-size: var(--t-s); min-width: 2.2em; text-align: right; }
+.toggle { width: 56px; height: 32px; border-radius: 99px; border: var(--border); background: var(--sheet); position: relative; flex: none; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); }
+.toggle[aria-checked="true"], [aria-checked="true"] > .toggle { background: var(--ok); }
+.toggle[aria-checked="true"]::after, [aria-checked="true"] > .toggle::after { left: 27px; background: var(--sheet); }
+
+/* Kalenderblatt */
+.cal { position: relative; margin: 0 6px 12px 0; }
+.cal::before, .cal::after { content: ""; position: absolute; inset: 0; border: var(--border); border-radius: var(--r-sheet); }
+.cal::before { background: var(--signal); transform: translate(7px, 9px) rotate(.8deg); }
+.cal::after { background: var(--sheet); transform: translate(3px, 4px) rotate(-.3deg); }
+.leaf { position: relative; z-index: 1; background: var(--sheet); border: var(--border); border-radius: var(--r-sheet); transform: rotate(-.6deg); padding: 26px 14px 14px; }
+.holes { position: absolute; top: 8px; left: 14px; right: 14px; display: flex; justify-content: space-between; }
+.holes i { width: 12px; height: 12px; border-radius: 50%; background: var(--gelb); border: 2.5px solid var(--ink); }
+.date { display: flex; align-items: center; gap: 10px; }
+.date .d { font-family: var(--font-display); font-size: var(--d-xl); line-height: .9; }
+.date .m { font-family: var(--font-display); font-size: calc(22px * var(--scale)); line-height: 1.05; text-transform: uppercase; }
+.star { position: absolute; width: 104px; height: 104px; display: grid; place-items: center; text-align: center; font-weight: 800; font-size: calc(15px * var(--scale)); line-height: 1.05; transform: rotate(8deg); }
+.star::before { content: ""; position: absolute; inset: 0; background: var(--signal); clip-path: polygon(50% 0, 61% 14%, 79% 7%, 80% 25%, 98% 28%, 89% 44%, 100% 58%, 84% 67%, 88% 85%, 70% 84%, 61% 100%, 50% 88%, 39% 100%, 30% 84%, 12% 85%, 16% 67%, 0 58%, 11% 44%, 2% 28%, 20% 25%, 21% 7%, 39% 14%); }
+.star span { position: relative; }
+.stamp { font-family: var(--font-display); text-transform: uppercase; line-height: 1; text-shadow: 3px 3px 0 var(--signal); margin: 0; text-wrap: balance; font-weight: 400; }
+.flip { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* Thumbnail-Kachel 16:9 (YouTube-Art): Bild textfrei, Titel als Tafel darauf */
+.tile { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--ink); min-width: 0; }
+.thumb { position: relative; aspect-ratio: 16 / 9; max-width: 100%; border: var(--border); border-radius: var(--r-tile); overflow: hidden; box-shadow: var(--shadow); background: var(--ink); }
+.thumb .art { position: absolute; inset: 0; }
+.thumb .plate { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); background: var(--ink); color: var(--gelb); font-family: var(--font-display); text-transform: uppercase; font-size: var(--d-s); line-height: 1.02; padding: 4px 8px 5px; border-radius: 4px; transform: rotate(-1.5deg); transform-origin: left bottom; }
+.thumb .plate.w { color: #FFFFFF; }
+.thumb .dur { position: absolute; right: 8px; top: 8px; background: var(--ink); color: #FFFFFF; font-weight: 800; font-size: calc(14px * var(--scale)); padding: 2px 7px; border-radius: 4px; }
+.thumb .fam { position: absolute; left: 8px; top: 8px; font-weight: 800; font-size: calc(14px * var(--scale)); padding: 2px 8px; border-radius: 99px; border: 2px solid var(--ink); }
+.new { background: var(--gelb); border: 2px solid var(--ink); font-weight: 800; font-size: calc(14px * var(--scale)); padding: 0 6px; border-radius: 4px; }
+.meta { font-size: var(--t-s); font-weight: 700; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.meta .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink); flex: none; }
+.tile .sub { font-size: var(--t-s); color: var(--muted); }
+/* Große Schrift: Tafel wandert unter das Bild, nichts wird abgeschnitten */
+[data-schrift="gross"] .thumb, [data-schrift="sehr-gross"] .thumb { aspect-ratio: auto; display: flex; flex-direction: column; }
+[data-schrift="gross"] .thumb .art, [data-schrift="sehr-gross"] .thumb .art { position: relative; inset: auto; aspect-ratio: 16 / 9; }
+[data-schrift="gross"] .thumb .plate, [data-schrift="sehr-gross"] .thumb .plate { position: static; transform: none; max-width: none; border-radius: 0; }
+/* Große Schrift: Stempel ohne Versatzschatten, Reihen werden zu Spalten */
+[data-schrift="gross"] .stamp, [data-schrift="sehr-gross"] .stamp, [data-bewegung="ruhig"] .stamp { text-shadow: none; }
+[data-schrift="sehr-gross"] .row2, [data-schrift="sehr-gross"] .row21, [data-schrift="sehr-gross"] .row3 { grid-template-columns: minmax(0, 1fr); }
+[data-schrift="gross"] .leaf > div:has(> .star), [data-schrift="sehr-gross"] .leaf > div:has(> .star) { flex-wrap: wrap; gap: 8px; }
+/* Aktionsleiste unten (Hauptknopf) bleibt in der App am unteren Rand stehen, auch bei großer Schrift. */
+.actions { position: sticky; bottom: 0; background: var(--paper); z-index: 2; }
+[data-schrift="gross"] .intents, [data-schrift="sehr-gross"] .intents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-schrift="gross"] .shelf-row, [data-schrift="sehr-gross"] .shelf-row { grid-auto-flow: row; grid-auto-columns: auto; overflow: visible; }
+[data-schrift="gross"] .more-tile, [data-schrift="sehr-gross"] .more-tile { aspect-ratio: auto; min-height: var(--btn-2); flex-direction: row; }
+
+/* Regal-Reihe */
+.shelf { display: flex; flex-direction: column; gap: 8px; }
+.shelf-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shelf-h h2 { font-family: var(--font-display); font-weight: 400; font-size: var(--d-s); text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 8px; }
+.shelf-row { display: grid; grid-auto-flow: column; grid-auto-columns: 236px; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 12px; padding: 12px; margin: -12px; }
+.shelf-row > * { scroll-snap-align: start; }
+.more-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; aspect-ratio: 16 / 9; border: 3px dashed var(--ink); border-radius: var(--r-tile); font-weight: 800; font-size: var(--t-m); text-decoration: none; color: var(--ink); background: var(--sheet); }
+
+/* Absichten */
+.intents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.intent { min-height: 58px; border: var(--border); border-radius: 14px; background: var(--sheet); box-shadow: var(--shadow); display: flex; align-items: center; gap: 6px; padding: 6px 8px; text-decoration: none; font-weight: 800; font-size: calc(16px * var(--scale)); line-height: 1.1; cursor: pointer; color: var(--ink); }
+.intent svg { width: 24px; height: 24px; flex: none; }
+.intent.frei { background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); }
+
+/* Reiter */
+.tabs { display: flex; border-bottom: var(--border); background: var(--paper); }
+.tabs a, .tabs button { flex: 1; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800; font-size: var(--t-s); text-decoration: none; border: 0; background: transparent; border-bottom: 5px solid transparent; }
+.tabs [aria-selected="true"], .tabs [aria-current="page"] { border-bottom-color: var(--ink); background: var(--gelb); }
+
+/* Blätter und Karten */
+.panel { background: var(--sheet); border: var(--border); border-radius: var(--r-card); padding: 14px; box-shadow: var(--shadow); }
+.note { background: var(--gelb-hell); border: 2px solid var(--ink); border-radius: 12px; padding: 10px 12px; font-size: var(--t-s); display: flex; gap: 8px; align-items: flex-start; }
+.note svg { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.who { display: flex; align-items: center; gap: 10px; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--ink); color: var(--paper); padding: 8px 14px; font-weight: 700; font-size: var(--t-s); }
+.bar .pill { background: var(--gelb); color: var(--ink); border-radius: 99px; padding: 2px 10px; font-weight: 800; }
+.sheet-bottom { position: absolute; left: 0; right: 0; bottom: 0; background: var(--paper); border-top: var(--border); padding: 12px 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.answer { min-height: var(--answer); border: var(--border); border-radius: var(--r-btn); background: var(--sheet); color: var(--ink); font-family: var(--font-display); font-size: calc(30px * var(--scale)); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1; padding: 6px 4px; cursor: pointer; }
+.answers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.answers .answer { min-height: 76px; }
+[data-schrift="gross"] .answers, [data-schrift="sehr-gross"] .answers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+[data-schrift="gross"] .top, [data-schrift="sehr-gross"] .top { flex-wrap: wrap; padding-block: 6px; }
+.answer small { font-family: var(--font-text); font-size: var(--t-s); font-weight: 800; }
+.answer.dis { opacity: 1; background: repeating-linear-gradient(-45deg, var(--paper) 0 6px, #E9E1C4 6px 12px); color: var(--muted); box-shadow: none; border-style: dashed; }
+.pcard { width: 52px; height: 74px; border: var(--border); border-radius: 8px; background: var(--sheet); display: grid; place-items: center; font-family: var(--font-display); font-size: 28px; box-shadow: 2px 2px 0 var(--ink); flex: none; }
+.pcard.back { background: var(--fam-bluff) repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,.18) 6px 12px); color: #FFFFFF; }
+.pcard.now { background: var(--gelb); color: var(--ink); border-width: 5px; transform: translateY(-6px); box-shadow: 0 0 0 4px var(--sheet), 0 0 0 7px var(--ink); }
+.steps { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.steps li { display: flex; gap: 10px; align-items: center; font-size: var(--t-m); }
+.steps .ic { width: 32px; height: 32px; border-radius: 50%; border: var(--border); display: grid; place-items: center; flex: none; background: var(--sheet); }
+.steps .ic.ok { background: var(--ok); color: #FFFFFF; border-color: var(--ok); }
+.steps .ic.run { background: var(--gelb); }
+
+/* Bewegung: Stempel, Abreißen, Aufklappen. Reduziert: nur Überblenden */
+@keyframes stamp { from { transform: scale(1.6) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tear { to { transform: translate(-30%, 110%) rotate(-14deg); opacity: 0; } }
+@keyframes door { to { transform: perspective(900px) rotateY(-105deg); } }
+.anim-stamp { animation: stamp var(--m-mid) var(--ease-stamp) both; }
+/* Dunkelmodus: dieselbe Sprache bei Nacht. Tinte und Creme tauschen die Rollen, Gelb bleibt Marke,
+   harte Schatten werden schwarz, Flächen mit Text darauf behalten feste dunkle Werte. */
+[data-theme="dark"] {
+  --ink: #FBF5DD; --paper: #14120E; --sheet: #211D16; --gelb-hell: #3B3320; --muted: #CFC7B0;
+  --rot: #FF8A75; --ok: #4CC983; --shadow: 4px 4px 0 #000000; --shadow-l: 6px 6px 0 #000000;
+  --border: 3px solid #FBF5DD; --line: #FBF5DD;
+  color-scheme: dark;
+}
+/* view.js setzt data-theme="dark" auf <html>, wenn das System dunkel ist und „Mein Stil“ nichts anderes sagt. */
+[data-theme="dark"] .btn-main { background: var(--gelb); color: #17140F; box-shadow: 0 6px 0 var(--signal); }
+[data-theme="dark"] .btn-main:hover { color: #17140F; }
+[data-theme="dark"] .btn-main.wait { background: var(--sheet); color: var(--ink); }
+[data-theme="dark"] .chip[aria-pressed="true"], [data-theme="dark"] .chip.on, [data-theme="dark"] .seg > [aria-pressed="true"], [data-theme="dark"] .seg > [aria-selected="true"] { background: var(--gelb); color: #17140F; }
+[data-theme="dark"] .thumb .plate, [data-theme="dark"] .thumb .dur { background: #17140F; }
+[data-theme="dark"] .thumb .plate { color: var(--gelb); }
+[data-theme="dark"] .field .go { background: var(--gelb); color: #17140F; }
+[data-theme="dark"] .star { color: #17140F; }
+[data-theme="dark"] .bar { background: #000000; color: var(--ink); }
+[data-theme="dark"] .top { background: #2A2412; color: var(--gelb); border-bottom-color: var(--gelb); }
+[data-theme="dark"] .top h1, [data-theme="dark"] .brand { color: var(--gelb); }
+[data-theme="dark"] .holes i { background: var(--paper); border-color: var(--gelb); }
+[data-theme="dark"] .cal::before { background: #8E2414; }
+[data-theme="dark"] .intent { color: #17140F; border-color: #000000; }
+[data-theme="dark"] .intent:not([style*="background"]):not(.frei) { background: var(--sheet); color: var(--ink); border-color: var(--ink); }
+[data-theme="dark"] .intent.frei { background: repeating-linear-gradient(-45deg, #F9D84A 0 14px, #FFE27A 14px 28px); }
+[data-theme="dark"] .note { color: var(--ink); }
+[data-theme="dark"] .avatar { border-color: #000000; color: #17140F; }
+[data-theme="dark"] .tabs [aria-selected="true"], [data-theme="dark"] .tabs [aria-current="page"] { background: var(--gelb); color: #17140F; border-bottom-color: var(--gelb); }
+
+
+/* „Neu erfinden“: Einstieg der Eigenen Karte direkt unter dem Tagesblatt. Eigener Akzent (Türkis der Kreativ-Familie,
+   roter Knopf), unterscheidbar vom gelben Hauptknopf, feste Farben in beiden Modi; Tinte auf Türkis 7,0:1, Tinte auf Signal 5,2:1. */
+.erfinden { background: #17B3A3; color: #17140F; border: 3px solid #17140F; border-radius: var(--r-card); box-shadow: 6px 6px 0 #17140F; padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.erfinden::before { content: ""; height: 2px; }
+.erfinden h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: var(--d-m); text-transform: uppercase; line-height: 1; display: flex; align-items: center; gap: 8px; }
+.erfinden h2 svg { width: 28px; height: 28px; flex: none; }
+.erfinden p { font-size: var(--t-s); font-weight: 700; }
+.erfinden textarea { width: 100%; min-height: 56px; border: 3px solid #17140F; border-radius: 14px; background: #FFFDF5; color: #17140F; font-family: inherit; font-size: var(--t-m); padding: 10px 12px; resize: none; }
+.erfinden textarea::placeholder { color: #5C5444; }
+.erfinden .go-erf { min-height: 56px; border: 3px solid #17140F; border-radius: 14px; background: #FF3B1D; color: #17140F; font-family: var(--font-display); font-size: var(--d-s); text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; box-shadow: 3px 3px 0 #17140F; cursor: pointer; text-decoration: none; }
+.erfinden .erf-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+[data-schrift="sehr-gross"] .erfinden .erf-row { grid-template-columns: minmax(0, 1fr); }
+
+
+/* Blasen: Anpassen direkt auf der Karte (festes Produktmuster, wie .bubble in apps/mdi). Jede anpassbare Stelle trägt
+   eine Blase am Rand ihres Teils; Antippen öffnet genau dieses Feld. Blasen liegen nur auf Bildfläche, nie auf Text. */
+.blase { position: absolute; z-index: 5; min-height: 44px; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px; border: 3px solid #17140F; border-radius: 999px; background: #F9D84A; color: #17140F; font-family: var(--font-text); font-weight: 800; font-size: var(--t-s); white-space: nowrap; box-shadow: 0 3px 0 #17140F; cursor: pointer; text-decoration: none; }
+.blase::before { content: "✎"; }
+.blase.ki { background: #17B3A3; }
+.blase.ki::before { content: "✦"; }
+.blase[aria-expanded="true"] { background: #17140F; color: #F9D84A; box-shadow: 0 0 0 4px #F9D84A; }
+.blase-hint { font-size: var(--t-s); font-weight: 700; text-align: center; }
+.ziel { outline: 3px dashed #17140F; outline-offset: 3px; border-radius: 6px; }
+
+/* Plattform-Rahmen (nur Canvas): Systemleisten, damit Abstände und Gesten-Zonen sichtbar sind */
+.os-status { height: 47px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-weight: 600; font-size: 16px; }
+.os-island { width: 122px; height: 34px; border-radius: 20px; background: #000000; }
+.os-home { height: 34px; display: grid; place-items: center; }
+.os-home i { width: 134px; height: 5px; border-radius: 3px; background: currentColor; }
+.os-status.android { height: 36px; padding: 0 18px; font-family: Roboto, system-ui, sans-serif; font-size: 14px; font-weight: 500; }
+.os-nav { height: 28px; display: grid; place-items: center; }
+.os-nav i { width: 108px; height: 4px; border-radius: 2px; background: currentColor; opacity: .8; }
+.sheet-os { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 14px 14px 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app *, .app *::before, .app *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+}
+[data-bewegung="ruhig"] *, [data-bewegung="ruhig"] *::before { animation: none !important; transition: none !important; }
+
+/* Desktop ab 900 px: zwei Spalten, Blatt links bleibt stehen */
+.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 40px; align-items: start; }
+
+/* ---------- Teil 3: nur Canvas – Motive für textfreie Thumbnails ---------- */
+.rays { background: repeating-conic-gradient(from 0deg at 50% 60%, rgba(255,255,255,.22) 0 9deg, transparent 9deg 18deg); }
+.rays-d { background: repeating-conic-gradient(from 0deg at 50% 60%, rgba(0,0,0,.14) 0 9deg, transparent 9deg 18deg); }
+.ds-sw { height: 72px; border: var(--border); border-radius: 12px; display: flex; align-items: flex-end; padding: 8px; font-weight: 800; font-size: 14px; }

@@ -1,0 +1,22 @@
+Du bist unabhängige Gutachterin für eine Nutzerstudie. Lies NUR die Datei
+/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/judge-1.json
+und die darin unter "bildschirmfotos" genannten PNG-Dateien (mit dem Read-Tool ansehen; mindestens das zweite Foto je Fall). Lies keine anderen Dateien und suche nichts im Repository. Jeder Eintrag: eine Persona, ihre gewählten Knöpfe in einer Handy-App ("Deine freie Karte – ein Satz, die KI baut sie"), ihr getippter Wunsch, ihre VORHER aufgeschriebenen Erwartungen (erwartung[]) und "anzeige": das, was die App ihr danach zeigt. Bei einer Karte sind das der Titel, die Liste "das_kann_dein_spiel", die Liste "fehlt" (mit Grund) und Hinweise; bei keiner Karte der wörtliche Meldungstext. Dazu kommen "bildschirmfotos" aus dem echten Spiel nach etwa 1 s und 4 s zufälliger Eingabe und "spielcode", der Code des Spiels. Die Persona sieht den Code nicht, erlebt aber genau sein Verhalten. Nutze ihn als sachliche Beschreibung, was das Spiel tut. Steuerung: Steuerkreuz (links, rechts, hoch, runter) und Feuerknopf. Tippen aufs Spielfeld zählt als Feuer.
+
+Bewerte JEDEN Erwartungspunkt aus Sicht der Persona, streng am Gezeigten bzw. am tatsächlichen Verhalten, mit genau einem Urteil:
+- "erfuellt": das Ergebnis tut sichtbar, was der Punkt sagt.
+- "teilweise": zum Teil (z. B. Thema stimmt, Mechanik nicht ganz; Name fehlt, Anlass stimmt).
+- "nicht": eine Karte kam, der Punkt ist nicht erfüllt, ohne dass die App vorgibt, es sei das Gewünschte (z. B. Detail fehlt), ODER keine Karte und die Meldung ist falsch/irreführend/unbegründet für diesen harmlosen Wunsch.
+- "ehrlich_abgesagt": keine Karte (oder der Teil fehlt) und die App sagt offen und zutreffend, dass sie das nicht kann (Alternativen dürfen dabei sein). Steht ein Punkt zutreffend unter "fehlt" oder in einem Hinweis, gilt er als ehrlich abgesagt.
+- "scheinangebot": die App liefert eine Karte, die als Erfüllung des Wunsches auftritt, aber eine andere Mechanik/Funktion/einen anderen Inhalt ersetzt, ohne das zu sagen (z. B. statt Ballerspiel ein Flatter-Hindernisspiel unter passendem Titel). Das gilt auch, wenn "das_kann_dein_spiel" etwas verspricht, das das Spiel laut Code/Foto nicht tut.
+
+Zusätzlich je Fall:
+- "gesamt": eines von erfuellt | teilweise | nicht | ehrlich_abgesagt | scheinangebot (dein Gesamturteil, was die Persona erlebt).
+- "ueberblockt": true, wenn ein offensichtlich harmloser Wunsch abgelehnt/blockiert wurde, obwohl die Ablehnungsbegründung nicht zum Wunsch passt, sonst false.
+- "fehler_inhalt": kurze Liste sachlicher Fehler in Karteninhalten (falsche Texte, falsche Anrede/Grammatik, Rechenfehler, im Spiel sichtbare Fehler wie überlappende oder abgeschnittene Elemente), sonst [].
+- "muster": 1–3 kurze Stichworte zur Abweichung (z. B. "falsche Mechanik", "Funktion fehlt", "Detail ignoriert", "Anzahl falsch", "Meldung passt nicht", "Steuerung anders").
+- "begruendung": 1–3 Sätze, sachlich, deutsch.
+
+Ausgabe: JSON Lines, eine Zeile pro Fall, mit dem Write-Tool nach
+/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/urteile-1.jsonl
+Format je Zeile: {"fall":"<fall>","id":"<id>","punkte":[{"erwartung":"...","urteil":"...","warum":"kurz"}],"gesamt":"...","ueberblockt":false,"fehler_inhalt":[],"muster":[],"begruendung":"..."}
+Alle Fälle in der Reihenfolge der Datei, je Erwartungspunkt genau ein Eintrag in "punkte" (gleiche Reihenfolge wie erwartung[]). Antworte am Ende nur mit "fertig" und der Zeilenzahl.

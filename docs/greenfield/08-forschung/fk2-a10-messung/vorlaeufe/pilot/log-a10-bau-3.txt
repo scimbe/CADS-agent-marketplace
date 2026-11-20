@@ -1,0 +1,10 @@
+{"t":"2026-11-17T23:06:27.467Z","event":"fk2-bau-start","rollen":{"planer":"claude-haiku-5-5","bauer":"claude-haiku-5-5","abnahme":"claude-haiku-5-5"},"effort":{"planer":"medium","bauer":"medium","abnahme":"medium"},"double":false,"kosten":{"jeAuftragUsd":0.25,"jeTagUsd":1.15}}
+{"t":"2026-11-17T23:07:09.996Z","event":"fk2-llm","role":"planer","model":"claude-haiku-5-5","tag":"qROMEWrnUIRSSyVnKZcXmQ:plan0","stop":"end_turn","ms":27250,"in":1936,"out":5764,"cacheRead":0,"cacheWrite":12283,"usd":0.004610975000000001,"spent":0.004610975000000001}
+{"t":"2026-11-17T23:08:07.672Z","event":"fk2-llm","role":"bauer","model":"claude-haiku-5-5","tag":"qROMEWrnUIRSSyVnKZcXmQ:bau","stop":"end_turn","ms":57673,"in":2551,"out":13007,"cacheRead":0,"cacheWrite":11229,"usd":0.008162225,"spent":0.012773200000000002}
+{"t":"2026-11-17T23:08:28.255Z","event":"fk2-llm","role":"abnahme","model":"claude-haiku-5-5","tag":"qROMEWrnUIRSSyVnKZcXmQ:abnahme","stop":"end_turn","ms":13487,"in":4450,"out":2722,"cacheRead":0,"cacheWrite":11625,"usd":0.003259125,"spent":0.016032325}
+{"t":"2026-11-17T23:08:28.272Z","event":"fk2-bau","art":"neu","ok":true,"grund":null,"ki":null,"fehlt":1,"ersetzt":0,"ms":105527,"usd":0.016032}
+{"t":"2026-11-17T23:08:31.279Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:34.282Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:37.288Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:40.292Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:43.297Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}

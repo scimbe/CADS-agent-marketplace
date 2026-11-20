@@ -1,0 +1,31 @@
+{"t":"2026-11-17T23:08:53.120Z","event":"fk2-bau-start","rollen":{"planer":"claude-haiku-5-5","bauer":"claude-haiku-5-5","abnahme":"claude-haiku-5-5"},"effort":{"planer":"medium","bauer":"medium","abnahme":"medium"},"double":false,"kosten":{"jeAuftragUsd":0.25,"jeTagUsd":1.15}}
+{"t":"2026-11-17T23:09:50.789Z","event":"fk2-llm","role":"planer","model":"claude-haiku-5-5","tag":"TmD4y8O-DwvaeYPg9OwswA:plan0","stop":"end_turn","ms":24307,"in":1681,"out":4907,"cacheRead":12283,"cacheWrite":0,"usd":0.00274443,"spent":0.00274443}
+{"t":"2026-11-17T23:10:24.405Z","event":"fk2-llm","role":"bauer","model":"claude-haiku-5-5","tag":"TmD4y8O-DwvaeYPg9OwswA:bau","stop":"end_turn","ms":33615,"in":2034,"out":7820,"cacheRead":11229,"cacheWrite":0,"usd":0.00422569,"spent":0.00697012}
+{"t":"2026-11-17T23:10:37.750Z","event":"fk2-llm","role":"abnahme","model":"claude-haiku-5-5","tag":"TmD4y8O-DwvaeYPg9OwswA:abnahme","stop":"end_turn","ms":6457,"in":3970,"out":1201,"cacheRead":11625,"cacheWrite":0,"usd":0.00111375,"spent":0.00808387}
+{"t":"2026-11-17T23:10:37.763Z","event":"fk2-bau","art":"neu","ok":true,"grund":null,"ki":null,"fehlt":1,"ersetzt":0,"ms":71283,"usd":0.008084}
+{"t":"2026-11-17T23:11:13.417Z","event":"fk2-llm","role":"planer","model":"claude-haiku-5-5","tag":"WqCCT3cvDuyRTbnSoFgtjw:plan0","stop":"end_turn","ms":23633,"in":1714,"out":4673,"cacheRead":12283,"cacheWrite":0,"usd":0.00263073,"spent":0.00263073}
+{"t":"2026-11-17T23:11:44.680Z","event":"fk2-llm","role":"planer","model":"claude-haiku-5-5","tag":"WqCCT3cvDuyRTbnSoFgtjw:plan1","stop":"end_turn","ms":31263,"in":1819,"out":6637,"cacheRead":12283,"cacheWrite":0,"usd":0.00362323,"spent":0.006253959999999999}
+{"t":"2026-11-17T23:11:54.300Z","event":"fk2-llm","role":"bauer","model":"claude-haiku-5-5","tag":"WqCCT3cvDuyRTbnSoFgtjw:bau","stop":"end_turn","ms":9620,"in":1957,"out":2410,"cacheRead":11229,"cacheWrite":0,"usd":0.00151299,"spent":0.00776695}
+{"t":"2026-11-17T23:12:15.974Z","event":"fk2-llm","role":"abnahme","model":"claude-haiku-5-5","tag":"WqCCT3cvDuyRTbnSoFgtjw:abnahme","stop":"end_turn","ms":16797,"in":3542,"out":3324,"cacheRead":11625,"cacheWrite":0,"usd":0.0021324499999999997,"spent":0.0098994}
+{"t":"2026-11-17T23:12:15.982Z","event":"fk2-bau","art":"neu","ok":true,"grund":null,"ki":null,"fehlt":1,"ersetzt":0,"ms":86198,"usd":0.009899}
+{"t":"2026-11-17T23:12:36.819Z","event":"fk2-llm","role":"planer","model":"claude-haiku-5-5","tag":"CW2ewRBJndsnyAuu3HMZqw:plan0","stop":"end_turn","ms":17829,"in":1884,"out":3902,"cacheRead":12283,"cacheWrite":0,"usd":0.00226223,"spent":0.00226223}
+{"t":"2026-11-17T23:12:58.014Z","event":"fk2-llm","role":"bauer","model":"claude-haiku-5-5","tag":"CW2ewRBJndsnyAuu3HMZqw:bau","stop":"end_turn","ms":21195,"in":2443,"out":5024,"cacheRead":11229,"cacheWrite":0,"usd":0.0028685900000000003,"spent":0.00513082}
+{"t":"2026-11-17T23:13:14.692Z","event":"fk2-llm","role":"abnahme","model":"claude-haiku-5-5","tag":"CW2ewRBJndsnyAuu3HMZqw:abnahme","stop":"end_turn","ms":10722,"in":3897,"out":2228,"cacheRead":11625,"cacheWrite":0,"usd":0.00161995,"spent":0.0067507700000000006}
+{"t":"2026-11-17T23:13:14.697Z","event":"fk2-bau","art":"neu","ok":true,"grund":null,"ki":null,"fehlt":0,"ersetzt":0,"ms":55707,"usd":0.006751}
+{"t":"2026-11-17T23:14:14.099Z","event":"fk2-llm","role":"planer","model":"claude-haiku-5-5","tag":"j9EPTThvJ2E5b3u6v8Xshg:plan0","stop":"end_turn","ms":23352,"in":1829,"out":4741,"cacheRead":12283,"cacheWrite":0,"usd":0.00267623,"spent":0.00267623}
+{"t":"2026-11-17T23:14:27.108Z","event":"fk2-llm","role":"bauer","model":"claude-haiku-5-5","tag":"j9EPTThvJ2E5b3u6v8Xshg:bau","stop":"end_turn","ms":13009,"in":2034,"out":3118,"cacheRead":11229,"cacheWrite":0,"usd":0.00187469,"spent":0.00455092}
+{"t":"2026-11-17T23:14:52.311Z","event":"fk2-llm","role":"abnahme","model":"claude-haiku-5-5","tag":"j9EPTThvJ2E5b3u6v8Xshg:abnahme","stop":"end_turn","ms":20194,"in":3813,"out":4071,"cacheRead":11625,"cacheWrite":0,"usd":0.0025330500000000002,"spent":0.00708397}
+{"t":"2026-11-17T23:14:52.317Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:14:55.320Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:14:58.324Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:01.328Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:04.333Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:07.337Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:10.344Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:13.349Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:16.353Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:19.356Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:22.359Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:25.360Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:28.363Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:15:28.845Z","event":"fk2-bau-stop","signal":"SIGTERM"}

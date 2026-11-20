@@ -1,0 +1,821 @@
+{
+ "null": {
+  "quote_gesamt_26": 0.412,
+  "arcade_11": 0.227,
+  "andere_spiele_6": 0.326,
+  "nicht_spiele_9": 0.694,
+  "p3_spiele": 0.2,
+  "arcade_p3": 0.227,
+  "andere_spiele_p3": 0.125,
+  "quelle": "fk2-nullmessung/kennzahlen.json, urteile.jsonl"
+ },
+ "p3_wuensche": [
+  "P01",
+  "P02",
+  "P03",
+  "P04",
+  "P05",
+  "P06",
+  "P07",
+  "P08",
+  "P09",
+  "P10",
+  "P11",
+  "P12",
+  "P13",
+  "P15",
+  "P16"
+ ],
+ "nicht_p3": [
+  "P14",
+  "P17",
+  "P18",
+  "P19",
+  "P20",
+  "P21",
+  "P22",
+  "P23",
+  "P24",
+  "P25",
+  "P26"
+ ],
+ "varianten": {
+  "A": {
+   "n_karten": 45,
+   "n_geurteilt": 45,
+   "quote": {
+    "p3_spiele": 0.852,
+    "arcade": 0.852,
+    "andere_spiele_p3": 0.854
+   },
+   "quote_gesamt_26_mit_null_fuer_nicht_p3": 0.788,
+   "quote_andere_spiele_6_mit_null_fuer_quiz": 0.813,
+   "quote_je_wunsch": {
+    "P01": [
+     1,
+     1,
+     1
+    ],
+    "P02": [
+     0.75,
+     0.75,
+     0.75
+    ],
+    "P03": [
+     0.875,
+     0.875,
+     0.875
+    ],
+    "P04": [
+     0.9,
+     0.9,
+     0.8
+    ],
+    "P05": [
+     1,
+     1,
+     1
+    ],
+    "P06": [
+     0.875,
+     0.875,
+     1
+    ],
+    "P07": [
+     0.625,
+     0.75,
+     0.625
+    ],
+    "P08": [
+     0.75,
+     0.875,
+     0
+    ],
+    "P09": [
+     1,
+     0.75,
+     0.75
+    ],
+    "P10": [
+     1,
+     1,
+     1
+    ],
+    "P11": [
+     1,
+     0.75,
+     1
+    ],
+    "P12": [
+     0.75,
+     0.5,
+     0.75
+    ],
+    "P13": [
+     1,
+     0.875,
+     1
+    ],
+    "P15": [
+     0.875,
+     0.625,
+     0.875
+    ],
+    "P16": [
+     1,
+     1,
+     1
+    ]
+   },
+   "punkte_anteil": {
+    "erfuellt": 76,
+    "teilweise": 18.6,
+    "ehrlich_abgesagt": 4.9,
+    "scheinangebot": 0.5
+   },
+   "punkte_n": 183,
+   "gesamt_anteil": {
+    "erfuellt": 55.6,
+    "teilweise": 40,
+    "scheinangebot": 2.2,
+    "ehrlich_abgesagt": 2.2
+   },
+   "ehrlich_fehlt_anteil_an_nicht_erfuellten_punkten": 20.5,
+   "scheinangebot_anteil_punkte": 0.5,
+   "karten_mit_scheinangebot": 2.2,
+   "ueberblockt": 0,
+   "mit_inhaltsfehler": 27,
+   "pipeline": {
+    "ende": {
+     "geliefert": 44,
+     "nicht-geschafft": 1
+    },
+    "abnahme_quote_alle_haken": 82.5,
+    "abnahme_quote_machbare_haken": 91.3,
+    "haken_je_karte": 6.364,
+    "nicht_machbar_angesagt": 27,
+    "erster_versuch_gruen": 64.4,
+    "reparaturrunden_mittel": 0.467,
+    "reparaturrunden_max": 3,
+    "latenz_s": {
+     "median": 63.477,
+     "p90": 162.677,
+     "max": 314.205
+    },
+    "kosten_usd_je_karte_erste_auslieferung": {
+     "mittel": 0.00967,
+     "max": 0.03455
+    },
+    "kosten_usd_je_karte_nachbesserungen": {
+     "mittel": 0.00189,
+     "max": 0.0119
+    },
+    "kosten_usd_gesamt": 0.52015,
+    "kosten_je_rolle": {
+     "planer": 0.08326,
+     "bauer": 0.28764,
+     "abnahme": 0.06407,
+     "bauer/nachbesserung": 0.05082,
+     "abnahme/nachbesserung": 0.03439
+    }
+   },
+   "nachbesserung": {
+    "karten": 44,
+    "offen_fehlt_summe_nach_0_1_2_3": [
+     49,
+     34,
+     29,
+     28
+    ],
+    "offen_fehlt_abnahme_summe_nach_0_1_2_3": [
+     22,
+     7,
+     2,
+     1
+    ],
+    "karten_ohne_offene_abnahme_fehlt_nach_0_1_2_3": [
+     28,
+     38,
+     42,
+     43
+    ],
+    "runden_mit_arbeit": 24,
+    "ergebnis": {
+     "nichts-zu-tun": 42,
+     "geliefert": 24
+    },
+    "latenz_s_median": 28.288
+   },
+   "fehlerarten": [
+    [
+     "format:abgeschnitten",
+     12
+    ],
+    [
+     "invariante:gameOverReachable",
+     7
+    ],
+    [
+     "laufzeit:syntax",
+     5
+    ],
+    [
+     "statisch:Syntax",
+     5
+    ],
+    [
+     "invariante:scoreChanges",
+     4
+    ]
+   ],
+   "bau_versuche": 90,
+   "bau_versuche_gruen": 68,
+   "muster": [
+    [
+     "detail ignoriert",
+     4
+    ],
+    [
+     "leben statt sofort-ende",
+     3
+    ],
+    [
+     "detail optik",
+     3
+    ],
+    [
+     "sieg erst nach level 3",
+     3
+    ],
+    [
+     "lego-optik fehlt (ehrlich)",
+     2
+    ],
+    [
+     "kein gewinn",
+     2
+    ],
+    [
+     "zusammenstoss nur leben",
+     2
+    ],
+    [
+     "fischgräten durch fisch ersetzt (offen gesagt)",
+     2
+    ],
+    [
+     "zeitlimit nicht angegeben",
+     2
+    ],
+    [
+     "fotos fehlen (ehrlich)",
+     2
+    ],
+    [
+     "wuerfelbild passt nicht",
+     2
+    ],
+    [
+     "mehrspieler fehlt",
+     2
+    ],
+    [
+     "steuerung anders",
+     2
+    ],
+    [
+     "meldung unverständlich",
+     2
+    ],
+    [
+     "anzeige verdeckt",
+     1
+    ]
+   ]
+  },
+  "B": {
+   "n_karten": 44,
+   "n_geurteilt": 44,
+   "quote": {
+    "p3_spiele": 0.821,
+    "arcade": 0.87,
+    "andere_spiele_p3": 0.688
+   },
+   "quote_gesamt_26_mit_null_fuer_nicht_p3": 0.77,
+   "quote_andere_spiele_6_mit_null_fuer_quiz": 0.701,
+   "quote_je_wunsch": {
+    "P01": [
+     1,
+     1,
+     1
+    ],
+    "P02": [
+     0.75,
+     0.75,
+     0.75
+    ],
+    "P03": [
+     0.875,
+     0.875,
+     0.875
+    ],
+    "P04": [
+     0.9,
+     0.9,
+     0.9
+    ],
+    "P05": [
+     0.875,
+     1,
+     1
+    ],
+    "P06": [
+     1,
+     0.875,
+     0.875
+    ],
+    "P07": [
+     0.5,
+     0.625,
+     0.625
+    ],
+    "P08": [
+     0.75,
+     0.875,
+     0.875
+    ],
+    "P09": [
+     0.875,
+     0.625,
+     1
+    ],
+    "P10": [
+     1,
+     1,
+     1
+    ],
+    "P11": [
+     0.875,
+     0.875,
+     1
+    ],
+    "P12": [
+     0.75,
+     0.625,
+     0.625
+    ],
+    "P13": [
+     0.5,
+     0.875,
+     1
+    ],
+    "P15": [
+     0.75,
+     0.875,
+     0.75
+    ],
+    "P16": [
+     0,
+     1
+    ]
+   },
+   "punkte_anteil": {
+    "erfuellt": 72.1,
+    "teilweise": 21.8,
+    "ehrlich_abgesagt": 5.6,
+    "nicht": 0.6
+   },
+   "punkte_n": 179,
+   "gesamt_anteil": {
+    "erfuellt": 50,
+    "teilweise": 47.7,
+    "ehrlich_abgesagt": 2.3
+   },
+   "ehrlich_fehlt_anteil_an_nicht_erfuellten_punkten": 20,
+   "scheinangebot_anteil_punkte": 0,
+   "karten_mit_scheinangebot": 0,
+   "ueberblockt": 0,
+   "mit_inhaltsfehler": 37,
+   "pipeline": {
+    "ende": {
+     "geliefert": 43,
+     "nicht-geschafft": 1
+    },
+    "abnahme_quote_alle_haken": 78.1,
+    "abnahme_quote_machbare_haken": 85.4,
+    "haken_je_karte": 6.465,
+    "nicht_machbar_angesagt": 24,
+    "erster_versuch_gruen": 72.7,
+    "reparaturrunden_mittel": 0.318,
+    "reparaturrunden_max": 3,
+    "latenz_s": {
+     "median": 62.596,
+     "p90": 121.045,
+     "max": 312.665
+    },
+    "kosten_usd_je_karte_erste_auslieferung": {
+     "mittel": 0.02479,
+     "max": 0.03724
+    },
+    "kosten_usd_je_karte_nachbesserungen": {
+     "mittel": 0.02054,
+     "max": 0.08241
+    },
+    "kosten_usd_gesamt": 1.99448,
+    "kosten_je_rolle": {
+     "planer": 0.07919,
+     "bauer": 0.25679,
+     "abnahme": 0.76494,
+     "bauer/nachbesserung": 0.13449,
+     "abnahme/nachbesserung": 0.76923
+    }
+   },
+   "nachbesserung": {
+    "karten": 43,
+    "offen_fehlt_summe_nach_0_1_2_3": [
+     61,
+     40,
+     32,
+     32
+    ],
+    "offen_fehlt_abnahme_summe_nach_0_1_2_3": [
+     37,
+     16,
+     8,
+     8
+    ],
+    "karten_ohne_offene_abnahme_fehlt_nach_0_1_2_3": [
+     17,
+     31,
+     36,
+     37
+    ],
+    "runden_mit_arbeit": 45,
+    "ergebnis": {
+     "nichts-zu-tun": 36,
+     "geliefert": 45
+    },
+    "latenz_s_median": 26.732
+   },
+   "fehlerarten": [
+    [
+     "invariante:scoreChanges",
+     11
+    ],
+    [
+     "format:abgeschnitten",
+     8
+    ],
+    [
+     "laufzeit:syntax",
+     4
+    ],
+    [
+     "statisch:Syntax",
+     4
+    ],
+    [
+     "invariante:gameOverReachable",
+     4
+    ],
+    [
+     "statisch:global:parent",
+     3
+    ]
+   ],
+   "bau_versuche": 111,
+   "bau_versuche_gruen": 88,
+   "muster": [
+    [
+     "meldung passt nicht",
+     5
+    ],
+    [
+     "leben statt sofort-ende",
+     3
+    ],
+    [
+     "meldung unverständlich",
+     3
+    ],
+    [
+     "detail ignoriert",
+     3
+    ],
+    [
+     "fotos fehlen (ehrlich)",
+     3
+    ],
+    [
+     "mehrspieler fehlt",
+     3
+    ],
+    [
+     "darstellungsfehler",
+     3
+    ],
+    [
+     "lego-optik fehlt (ehrlich)",
+     2
+    ],
+    [
+     "sieg erst nach level 5",
+     2
+    ],
+    [
+     "steuerung anders",
+     2
+    ],
+    [
+     "meldung widersprüchlich",
+     2
+    ],
+    [
+     "sieger nicht benannt",
+     2
+    ],
+    [
+     "mechanik veraendert",
+     2
+    ],
+    [
+     "sieg erst nach level 3",
+     2
+    ],
+    [
+     "fischgräten durch fisch ersetzt (offen gesagt)",
+     2
+    ]
+   ]
+  },
+  "C": {
+   "n_karten": 45,
+   "n_geurteilt": 45,
+   "quote": {
+    "p3_spiele": 0.749,
+    "arcade": 0.813,
+    "andere_spiele_p3": 0.573
+   },
+   "quote_gesamt_26_mit_null_fuer_nicht_p3": 0.729,
+   "quote_andere_spiele_6_mit_null_fuer_quiz": 0.625,
+   "quote_je_wunsch": {
+    "P01": [
+     1,
+     1,
+     1
+    ],
+    "P02": [
+     0.625,
+     0.625,
+     0.625
+    ],
+    "P03": [
+     0.875,
+     0.875,
+     0.875
+    ],
+    "P04": [
+     0.9,
+     0.9,
+     0.9
+    ],
+    "P05": [
+     1,
+     1,
+     1
+    ],
+    "P06": [
+     1,
+     0.875,
+     0.875
+    ],
+    "P07": [
+     0.375,
+     0.375,
+     0.375
+    ],
+    "P08": [
+     0,
+     0.875,
+     0
+    ],
+    "P09": [
+     1,
+     1,
+     1
+    ],
+    "P10": [
+     1,
+     1,
+     1
+    ],
+    "P11": [
+     1,
+     1,
+     0.875
+    ],
+    "P12": [
+     0.75,
+     0.75,
+     0.75
+    ],
+    "P13": [
+     0.75,
+     0.625,
+     0.75
+    ],
+    "P15": [
+     0.75,
+     0.875,
+     0.875
+    ],
+    "P16": [
+     0,
+     0,
+     0
+    ]
+   },
+   "punkte_anteil": {
+    "erfuellt": 68.3,
+    "teilweise": 13.7,
+    "ehrlich_abgesagt": 16.9,
+    "nicht": 1.1
+   },
+   "punkte_n": 183,
+   "gesamt_anteil": {
+    "erfuellt": 53.3,
+    "teilweise": 35.6,
+    "ehrlich_abgesagt": 11.1
+   },
+   "ehrlich_fehlt_anteil_an_nicht_erfuellten_punkten": 53.4,
+   "scheinangebot_anteil_punkte": 0,
+   "karten_mit_scheinangebot": 0,
+   "ueberblockt": 0,
+   "mit_inhaltsfehler": 24,
+   "pipeline": {
+    "ende": {
+     "geliefert": 40,
+     "nicht-geschafft": 5
+    },
+    "abnahme_quote_alle_haken": 76.6,
+    "abnahme_quote_machbare_haken": 87.6,
+    "haken_je_karte": 5.975,
+    "nicht_machbar_angesagt": 30,
+    "erster_versuch_gruen": 77.8,
+    "reparaturrunden_mittel": 0.511,
+    "reparaturrunden_max": 3,
+    "latenz_s": {
+     "median": 70.191,
+     "p90": 308.995,
+     "max": 317.692
+    },
+    "kosten_usd_je_karte_erste_auslieferung": {
+     "mittel": 0.04748,
+     "max": 0.07875
+    },
+    "kosten_usd_je_karte_nachbesserungen": {
+     "mittel": 0.01868,
+     "max": 0.1067
+    },
+    "kosten_usd_gesamt": 2.97714,
+    "kosten_je_rolle": {
+     "planer": 1.06152,
+     "bauer": 0.37042,
+     "abnahme": 0.7048,
+     "bauer/nachbesserung": 0.15905,
+     "abnahme/nachbesserung": 0.68132
+    }
+   },
+   "nachbesserung": {
+    "karten": 40,
+    "offen_fehlt_summe_nach_0_1_2_3": [
+     56,
+     44,
+     40,
+     38
+    ],
+    "offen_fehlt_abnahme_summe_nach_0_1_2_3": [
+     26,
+     14,
+     10,
+     8
+    ],
+    "karten_ohne_offene_abnahme_fehlt_nach_0_1_2_3": [
+     19,
+     30,
+     32,
+     35
+    ],
+    "runden_mit_arbeit": 39,
+    "ergebnis": {
+     "nichts-zu-tun": 32,
+     "geliefert": 39
+    },
+    "latenz_s_median": 28.528
+   },
+   "fehlerarten": [
+    [
+     "format:abgeschnitten",
+     25
+    ],
+    [
+     "invariante:scoreChanges",
+     6
+    ],
+    [
+     "laufzeit:syntax",
+     3
+    ],
+    [
+     "statisch:Syntax",
+     3
+    ],
+    [
+     "policy:mensch",
+     2
+    ],
+    [
+     "invariante:gameOverReachable",
+     2
+    ],
+    [
+     "invariante:inputsEffective",
+     1
+    ]
+   ],
+   "bau_versuche": 115,
+   "bau_versuche_gruen": 79,
+   "muster": [
+    [
+     "leben statt sofort-ende",
+     3
+    ],
+    [
+     "lego-optik angenähert",
+     3
+    ],
+    [
+     "zusammenstoss nur leben",
+     3
+    ],
+    [
+     "computer-gegner",
+     3
+    ],
+    [
+     "fotos fehlen (ehrlich)",
+     3
+    ],
+    [
+     "zeitlimit statt sieger",
+     3
+    ],
+    [
+     "mehrspieler fehlt",
+     3
+    ],
+    [
+     "detail optik",
+     3
+    ],
+    [
+     "prüfung nicht bestanden",
+     3
+    ],
+    [
+     "keine alternative angeboten",
+     3
+    ],
+    [
+     "meldung passt nicht",
+     2
+    ],
+    [
+     "meldung unspezifisch",
+     2
+    ],
+    [
+     "keine alternative",
+     2
+    ],
+    [
+     "kein gewinn",
+     2
+    ],
+    [
+     "fischgräten durch fisch ersetzt (offen gesagt)",
+     2
+    ]
+   ]
+  }
+ },
+ "api_kosten_usd_gesamt": 5.50194,
+ "aufrufe": 688,
+ "aufrufe_fehler": 1,
+ "tokens": {
+  "in": 1988891,
+  "out": 2933046,
+  "cacheRead": 5967954,
+  "cacheWrite": 26905
+ }
+}

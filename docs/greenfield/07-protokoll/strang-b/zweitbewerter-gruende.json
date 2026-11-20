@@ -1,0 +1,10 @@
+{
+ "t023": "Satz verlangt Spiel gegen den Computer, erzeugt ist ein 2-Spieler-Spiel.",
+ "t033": "Die ausdruecklich verlangte, immer laenger werdende Rentier-Schlange hinter dem Schlitten fehlt; Rentiere haben keine Funktion.",
+ "t065": "Satz meint Echtzeit-Einsammeln zu zweit, erzeugt ist ein Memory (andere Spielart).",
+ "t085": "Satz verlangt ausdruecklich gegen den Computer, erzeugt ist ein 2-Spieler-Spiel; zudem sind die Steine ⭐ und 🌟 kaum unterscheidbar.",
+ "t092": "Sachfehler: ein nicht mehr aktiver Vulkan ist 'extinct', 'dormant' bedeutet nur ruhend.",
+ "t093": "Sachfehler: die Zwiebel hat keine gruenen Schalen und ist als richtige Antwort auf diese Frage falsch.",
+ "t105": "Sachfehler: Snowboard faehrt man auf einem Brett, nicht auf zwei (das waere Ski).",
+ "t106": "Lueckentexte sind abgeschnitten und passen nicht zur Loesung (z. B. 'aus dem alten B' -> Julbock), Titel abgeschnitten; nicht loesbar."
+}

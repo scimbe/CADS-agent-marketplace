@@ -1,0 +1,361 @@
+{
+ "n_wuensche": 26,
+ "n_laeufe": 78,
+ "quote_gesamt_mittel": 0.412,
+ "quote_je_kategorie": {
+  "arcade": 0.227,
+  "anderes_spiel": 0.326,
+  "nicht_spiel": 0.694
+ },
+ "quote_je_wunsch": {
+  "P01": [
+   0,
+   0,
+   0
+  ],
+  "P02": [
+   0,
+   0,
+   0
+  ],
+  "P03": [
+   1,
+   1,
+   1
+  ],
+  "P04": [
+   0,
+   0,
+   0
+  ],
+  "P05": [
+   0.25,
+   0.25,
+   0.13
+  ],
+  "P06": [
+   0.63,
+   0.63,
+   0.63
+  ],
+  "P07": [
+   0,
+   0,
+   0
+  ],
+  "P08": [
+   0,
+   0,
+   0
+  ],
+  "P09": [
+   0,
+   0,
+   0
+  ],
+  "P10": [
+   1,
+   0,
+   1
+  ],
+  "P11": [
+   0,
+   0,
+   0
+  ],
+  "P12": [
+   0.75,
+   0,
+   0.75
+  ],
+  "P13": [
+   0,
+   0,
+   0
+  ],
+  "P14": [
+   0.63,
+   0.25,
+   0.63
+  ],
+  "P15": [
+   0,
+   0,
+   0
+  ],
+  "P16": [
+   0,
+   0,
+   0
+  ],
+  "P17": [
+   0.88,
+   1,
+   1
+  ],
+  "P18": [
+   1,
+   1,
+   1
+  ],
+  "P19": [
+   1,
+   1,
+   0.75
+  ],
+  "P20": [
+   0.38,
+   0.38,
+   0.38
+  ],
+  "P21": [
+   0.13,
+   0.13,
+   0.13
+  ],
+  "P22": [
+   0.63,
+   0.63,
+   0.63
+  ],
+  "P23": [
+   0.75,
+   0,
+   0.75
+  ],
+  "P24": [
+   1,
+   0.88,
+   1
+  ],
+  "P25": [
+   0.88,
+   0.88,
+   0.88
+  ],
+  "P26": [
+   0.88,
+   0.88,
+   0.88
+  ]
+ },
+ "punkte": {
+  "scheinangebot": 41,
+  "ehrlich_abgesagt": 79,
+  "erfuellt": 111,
+  "teilweise": 35,
+  "nicht": 49
+ },
+ "punkte_n": 315,
+ "punkte_anteil": {
+  "scheinangebot": 13,
+  "ehrlich_abgesagt": 25.1,
+  "erfuellt": 35.2,
+  "teilweise": 11.1,
+  "nicht": 15.6
+ },
+ "gesamt": {
+  "scheinangebot": 14,
+  "ehrlich_abgesagt": 19,
+  "erfuellt": 18,
+  "teilweise": 17,
+  "nicht": 10
+ },
+ "gesamt_anteil": {
+  "scheinangebot": 17.9,
+  "ehrlich_abgesagt": 24.4,
+  "erfuellt": 23.1,
+  "teilweise": 21.8,
+  "nicht": 12.8
+ },
+ "klasse": {
+  "karte": 51,
+  "absage": 22,
+  "block_s1": 3,
+  "block_modell": 2
+ },
+ "strikes": 5,
+ "ueberblockt": 8,
+ "mit_inhaltsfehler": 16,
+ "stabil": {
+  "P01": "karte",
+  "P02": "absage",
+  "P03": "karte",
+  "P04": "absage",
+  "P05": "karte",
+  "P06": "karte",
+  "P07": "block_s1",
+  "P08": "absage",
+  "P09": "absage",
+  "P10": "karte/absage",
+  "P11": "absage",
+  "P12": "karte/block_modell",
+  "P13": "absage",
+  "P14": "karte",
+  "P15": "karte",
+  "P16": "absage",
+  "P17": "karte",
+  "P18": "karte",
+  "P19": "karte",
+  "P20": "karte",
+  "P21": "karte",
+  "P22": "karte",
+  "P23": "karte/block_modell",
+  "P24": "karte",
+  "P25": "karte",
+  "P26": "karte"
+ },
+ "latenz_ms_mit_modell": {
+  "n": 54,
+  "median": 5266,
+  "p90": 18055,
+  "max": 51738
+ },
+ "latenz_ms_je_klasse": {
+  "karte": {
+   "n": 51,
+   "median": 5223,
+   "max": 25605
+  },
+  "absage": {
+   "n": 22,
+   "median": 3,
+   "max": 51738
+  },
+  "block_s1": {
+   "n": 3,
+   "median": 2,
+   "max": 3
+  },
+  "block_modell": {
+   "n": 2,
+   "median": 9767,
+   "max": 9767
+  }
+ },
+ "aufrufe_summe": 190,
+ "tokens": {
+  "in": 23306,
+  "out": 58866,
+  "cacheRead": 1072142,
+  "cacheWrite": 99591
+ },
+ "usd_haiku_auftragspreise": 0.05493,
+ "usd_haiku_mit_1h_write": 0.0624,
+ "usd_je_karte_mittel": 0.00108,
+ "usd_je_karte_max": 0.00636,
+ "usd_je_art": {
+  "card": {
+   "n": 15,
+   "usd_mittel": 0.00048,
+   "ms_median": 4409
+  },
+  "photo": {
+   "n": 3,
+   "usd_mittel": 0.00096,
+   "ms_median": 4663
+  },
+  "game": {
+   "n": 6,
+   "usd_mittel": 0.00101,
+   "ms_median": 6980
+  },
+  "lauf": {
+   "n": 3,
+   "usd_mittel": 0.00103,
+   "ms_median": 5138
+  },
+  "bau": {
+   "n": 10,
+   "usd_mittel": 0.00244,
+   "ms_median": 18055
+  },
+  "turn": {
+   "n": 14,
+   "usd_mittel": 0.00082,
+   "ms_median": 5266
+  }
+ },
+ "muster": [
+  [
+   "funktion fehlt",
+   11
+  ],
+  [
+   "falsche mechanik",
+   9
+  ],
+  [
+   "meldung passt nicht",
+   8
+  ],
+  [
+   "meldung teils unpassend",
+   6
+  ],
+  [
+   "detail ignoriert",
+   4
+  ],
+  [
+   "marke lego genannt",
+   3
+  ],
+  [
+   "breakout fehlt im katalog",
+   3
+  ],
+  [
+   "rennspiel nicht möglich",
+   3
+  ],
+  [
+   "überblockt",
+   3
+  ],
+  [
+   "marke pacman genannt",
+   3
+  ],
+  [
+   "labyrinth-spiel fehlt",
+   3
+  ],
+  [
+   "marke überblockt",
+   3
+  ],
+  [
+   "alternative passt kaum",
+   3
+  ],
+  [
+   "skat statt mau mau",
+   3
+  ],
+  [
+   "falsche anrede",
+   3
+  ],
+  [
+   "text statt funktion",
+   3
+  ],
+  [
+   "zeitraum nicht möglich",
+   3
+  ],
+  [
+   "titel leer",
+   3
+  ],
+  [
+   "bild fehlt",
+   3
+  ],
+  [
+   "sammelobjekt ersetzt",
+   2
+  ]
+ ]
+}
